@@ -1,7 +1,8 @@
 // app/thread/[id]/page.tsx
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react'; // ★ useCallback をインポート
+// ★ 修正点1: 'use' をインポートし、React から直接 use を参照
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 
@@ -27,10 +28,15 @@ type Post = {
   created_at: string;
 };
 
-const ThreadDetailPage = ({ params }: { params: { id: string } }) => {
+// ★ 修正点2: params を React.use でアンラップする
+const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => { // ★ params の型を Promise<{ id: string }> に変更
   const router = useRouter();
-  const threadId = params.id;
-  console.log("Thread ID from params:", threadId);
+  
+  // React.use() で params Promise を解決し、実際の params オブジェクトを取得
+  const resolvedParams = React.use(params); // ★ React.use を使用
+  const threadId = resolvedParams.id; // 解決された params オブジェクトから id を取得
+  
+  console.log("Thread ID from params (resolved):", threadId);
 
   const [thread, setThread] = useState<Thread | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -42,7 +48,6 @@ const ThreadDetailPage = ({ params }: { params: { id: string } }) => {
   const [submittingPost, setSubmittingPost] = useState(false);
   const postsEndRef = useRef<HTMLDivElement>(null);
 
-  // ★修正点4: fetchThreadAndPosts を useCallback でメモ化し、依存配列に含める
   const fetchThreadAndPosts = useCallback(async () => {
     setError(null);
     try {
@@ -72,15 +77,14 @@ const ThreadDetailPage = ({ params }: { params: { id: string } }) => {
       }
       setPosts(postsData);
 
-    } catch (err: unknown) { // ★ any -> unknown に変更
+    } catch (err: unknown) {
       console.error('データ取得エラー:', err instanceof Error ? err.message : String(err));
       setError(`データの読み込みに失敗しました: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);
     }
-  }, [threadId]); // threadId が変わったときにのみ useCallback を再生成
+  }, [threadId]);
 
-  // リアルタイム更新の購読と初期読み込み
   useEffect(() => {
     if (!threadId) {
         setLoading(false);
@@ -88,7 +92,7 @@ const ThreadDetailPage = ({ params }: { params: { id: string } }) => {
         return;
     }
 
-    fetchThreadAndPosts(); // 初期読み込み
+    fetchThreadAndPosts();
 
     const postsChannel = supabase
       .channel(`thread_posts:${threadId}`)
@@ -118,7 +122,7 @@ const ThreadDetailPage = ({ params }: { params: { id: string } }) => {
       supabase.removeChannel(postsChannel);
       supabase.removeChannel(threadsChannel);
     };
-  }, [threadId, fetchThreadAndPosts]); // ★修正点4: fetchThreadAndPosts を依存配列に追加
+  }, [threadId, fetchThreadAndPosts]);
 
   useEffect(() => {
     if (postsEndRef.current) {
@@ -165,9 +169,9 @@ const ThreadDetailPage = ({ params }: { params: { id: string } }) => {
         setError(`投稿に失敗しました: ${insertError.message}`);
       } else {
         setContent('');
-        await fetchThreadAndPosts(); // 投稿成功後に再フェッチ
+        await fetchThreadAndPosts();
       }
-    } catch (err: unknown) { // ★ any -> unknown に変更
+    } catch (err: unknown) {
       console.error('予期せぬ投稿エラー:', err instanceof Error ? err.message : String(err));
       setError(`予期せぬエラーが発生しました: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
