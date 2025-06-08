@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { useRouter } from 'next/navigation'; // App Router でのルーティング用フック
+import { useRouter } from 'next/navigation';
 
 // ESLint: 'supabase' is assigned a value but never used. を無視するために、
 // 実際には useSupaClient のようなカスタムフックとして定義するか、
@@ -81,8 +81,8 @@ const HomePage = () => {
         setFoundThread(null);
         setCurrentStatus('完了');
       }
-    } catch (error: unknown) { // ★ any -> unknown に変更
-      console.error('Edge Function呼び出しエラー:', error instanceof Error ? error.message : String(error)); // 型ガードを追加
+    } catch (error: unknown) {
+      console.error('Edge Function呼び出しエラー:', error instanceof Error ? error.message : String(error));
       setActionMessage(`エラー: ${error instanceof Error ? error.message : String(error)}`);
       setCurrentStatus('エラー');
     } finally {
@@ -111,7 +111,11 @@ const HomePage = () => {
             case error.TIMEOUT:
               errorMessage = '位置情報の取得がタイムアウトしました。';
               break;
-            case error.UNKNOWN_ERROR:
+            // ★修正点: UNKNOWN_ERROR は GeolocationPositionError に存在しないため削除し、default に統合
+            // case error.UNKNOWN_ERROR: // この行を削除
+            //   errorMessage = '不明なエラーが発生しました。'; // この行も削除
+            //   break; // この行も削除
+            default: // 代わりに default ケースを追加
               errorMessage = '不明なエラーが発生しました。';
               break;
           }
@@ -130,7 +134,7 @@ const HomePage = () => {
 
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '600px', margin: 'auto', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', backgroundColor: '#fff', color: '#333' }}>
-      <h1 style={{ textAlign: 'center', color: '#333' }}>位置連動型掲示板 Stabo.dev</h1>
+      <h1 style={{ textAlign: 'center', color: '#333' }}>位置連動型掲示板</h1>
       
       {isLoading ? (
         <p style={{ textAlign: 'center', fontSize: '1.2em', color: '#555' }}>{currentStatus}</p>
@@ -148,7 +152,6 @@ const HomePage = () => {
               {foundThread ? (
                 <div style={{ borderTop: '1px solid #eee', paddingTop: '20px', textAlign: 'center' }}>
                   <h2 style={{ color: '#333' }}>見つかったスレッド:</h2>
-                  {/* ★修正点3: `"` のエスケープ */}
                   <p style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#333' }}>{`"${foundThread.title}"`}</p>
                   <p style={{ fontSize: '0.9em', color: '#666' }}>現在の投稿数: {foundThread.post_count} / 1000</p>
                   <button
