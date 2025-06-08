@@ -1,103 +1,196 @@
-import Image from "next/image";
+// app/page.tsx
+'use client';
 
-export default function Home() {
+import { useEffect, useState } from 'react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useRouter } from 'next/navigation'; // App Router でのルーティング用フック
+
+const supabase = createClientComponentClient({
+  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+});
+
+type GeolocationResult = {
+  latitude: number | null;
+  longitude: number | null;
+  error: string | null;
+};
+
+type ThreadInfo = {
+  id: string;
+  title: string;
+  latitude: number;
+  longitude: number;
+  post_count: number;
+};
+
+type EdgeFunctionResponse = {
+  type: 'found_thread' | 'create_new_thread';
+  thread?: ThreadInfo;
+  message?: string;
+  error?: string;
+};
+
+const HomePage = () => {
+  const router = useRouter(); // useRouter フックを初期化
+
+  const [location, setLocation] = useState<GeolocationResult>({
+    latitude: null,
+    longitude: null,
+    error: null,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentStatus, setCurrentStatus] = useState<string>('位置情報を取得中...');
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [foundThread, setFoundThread] = useState<ThreadInfo | null>(null);
+
+  const handleLocationProcessed = async (lat: number, lon: number) => {
+    setCurrentStatus('スレッドを検索中...');
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/handle-location`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          latitude: lat,
+          longitude: lon,
+        }),
+      });
+
+      const data: EdgeFunctionResponse = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Edge Functionの呼び出しに失敗しました。');
+      }
+
+      console.log('Edge Functionからの応答:', data);
+
+      if (data.type === 'found_thread' && data.thread) {
+        setActionMessage(`既存のスレッドが見つかりました: "${data.thread.title}"`);
+        setFoundThread(data.thread);
+        setCurrentStatus('完了');
+        // 自動でスレッド詳細ページへ遷移することも検討
+        // router.push(`/thread/${data.thread.id}`);
+      } else if (data.type === 'create_new_thread') {
+        setActionMessage(data.message || 'この位置にスレッドが見つかりませんでした。新しいスレッドを作成できます。');
+        setFoundThread(null);
+        setCurrentStatus('完了');
+      }
+    } catch (error: any) {
+      console.error('Edge Function呼び出しエラー:', error.message);
+      setActionMessage(`エラー: ${error.message}`);
+      setCurrentStatus('エラー');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setLocation({ latitude, longitude, error: null });
+          handleLocationProcessed(latitude, longitude);
+        },
+        (error) => {
+          console.error('位置情報の取得に失敗しました:', error);
+          let errorMessage = '位置情報の取得に失敗しました。';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = '位置情報へのアクセスが拒否されました。設定を確認してください。';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = '位置情報が利用できません。';
+              break;
+            case error.TIMEOUT:
+              errorMessage = '位置情報の取得がタイムアウトしました。';
+              break;
+            case error.UNKNOWN_ERROR:
+              errorMessage = '不明なエラーが発生しました。';
+              break;
+          }
+          setLocation({ latitude: null, longitude: null, error: errorMessage });
+          setIsLoading(false);
+          setCurrentStatus('エラー');
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    } else {
+      setLocation({ latitude: null, longitude: null, error: 'お使いのブラウザは位置情報に対応していません。' });
+      setIsLoading(false);
+      setCurrentStatus('エラー');
+    }
+  }, []);
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '600px', margin: 'auto', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', backgroundColor: '#fff', color: '#333' }}>
+      <h1 style={{ textAlign: 'center', color: '#333' }}>位置連動型掲示板</h1>
+      
+      {isLoading ? (
+        <p style={{ textAlign: 'center', fontSize: '1.2em', color: '#555' }}>{currentStatus}</p>
+      ) : (
+        <div>
+          {location.error ? (
+            <p style={{ color: 'red', textAlign: 'center' }}>エラー: {location.error}</p>
+          ) : (
+            <>
+              <p style={{ textAlign: 'center', fontSize: '0.9em', color: '#777' }}>
+                緯度: {location.latitude?.toFixed(6)}, 経度: {location.longitude?.toFixed(6)}
+              </p>
+              {actionMessage && <p style={{ textAlign: 'center', fontSize: '1.1em', color: '#444', marginBottom: '20px' }}>{actionMessage}</p>}
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+              {foundThread ? (
+                <div style={{ borderTop: '1px solid #eee', paddingTop: '20px', textAlign: 'center' }}>
+                  <h2 style={{ color: '#333' }}>見つかったスレッド:</h2> {/* h2の色も調整 */}
+                  <p style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#333' }}>"{foundThread.title}"</p> {/* タイトル色も調整 */}
+                  <p style={{ fontSize: '0.9em', color: '#666' }}>現在の投稿数: {foundThread.post_count} / 1000</p>
+                  <button
+                    onClick={() => router.push(`/thread/${foundThread.id}`)}
+                    style={{
+                      padding: '10px 20px',
+                      fontSize: '1em',
+                      backgroundColor: '#0070f3',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '5px',
+                      cursor: 'pointer',
+                      marginTop: '15px',
+                      transition: 'background-color 0.2s',
+                    }}
+                  >
+                    スレッドを見る
+                  </button>
+                </div>
+              ) : (
+                <div style={{ borderTop: '1px solid #eee', paddingTop: '20px', textAlign: 'center' }}>
+                  <p style={{ fontSize: '1.1em', color: '#444' }}>この位置にスレッドがありません。</p>
+                  <button
+                    onClick={() => router.push(`/create-thread?lat=${location.latitude}&lon=${location.longitude}`)}
+                    style={{
+                      padding: '10px 20px',
+                      fontSize: '1em',
+                      backgroundColor: '#28a745',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '5px',
+                      cursor: 'pointer',
+                      marginTop: '15px',
+                      transition: 'background-color 0.2s',
+                    }}
+                  >
+                    新規スレッドを作成する
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      )}
     </div>
   );
-}
+};
+
+export default HomePage;
