@@ -1,7 +1,6 @@
 // app/thread/[id]/page.tsx
 'use client';
 
-// ★ 修正点1: 'use' をインポートし、React から直接 use を参照
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
@@ -28,13 +27,11 @@ type Post = {
   created_at: string;
 };
 
-// ★ 修正点2: params を React.use でアンラップする
-const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => { // ★ params の型を Promise<{ id: string }> に変更
+const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
   const router = useRouter();
   
-  // React.use() で params Promise を解決し、実際の params オブジェクトを取得
-  const resolvedParams = React.use(params); // ★ React.use を使用
-  const threadId = resolvedParams.id; // 解決された params オブジェクトから id を取得
+  const resolvedParams = React.use(params);
+  const threadId = resolvedParams.id;
   
   console.log("Thread ID from params (resolved):", threadId);
 
@@ -184,7 +181,8 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => { 
   }
 
   if (error) {
-    return <div style={{ color: 'red', textAlign: 'center', padding: '20px', backgroundColor: '#fff', color: '#333' }}>エラー: {error}</div>;
+    // ★修正点: colorプロパティの重複を解消
+    return <div style={{ color: 'red', textAlign: 'center', padding: '20px', backgroundColor: '#fff' }}>エラー: {error}</div>;
   }
 
   if (!thread) {
