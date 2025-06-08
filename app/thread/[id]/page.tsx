@@ -1,7 +1,7 @@
 // app/thread/[id]/page.tsx
 'use client';
 
-import { useEffect, useState, useRef, use } from 'react'; // ★ use をインポート
+import { useEffect, useState, useRef, useCallback } from 'react'; // ★ useCallback をインポート
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 
@@ -27,35 +27,10 @@ type Post = {
   created_at: string;
 };
 
-// params を受け取るように変更
 const ThreadDetailPage = ({ params }: { params: { id: string } }) => {
   const router = useRouter();
-  // ★ 修正点: params を use でアンラップする
-  // ただし、このエラーが出るということは params が Promise ではなく直接渡されている可能性も。
-  // 一旦、`use` を追加し、動かなければ直接アクセスに戻し、原因を再調査します。
-  // 警告メッセージ通り `params` が Promise の場合は `const resolvedParams = use(params); const threadId = resolvedParams.id;`
-  // のようになるべきですが、App Routerのクライアントコンポーネントでは通常直接アクセスできます。
-  // Next.jsのバージョンが特定できないため、まずは直接アクセスを維持しつつ、原因を特定しましょう。
-  // もし Next.js 14 以降であれば、`use(params)` の形が推奨されます。
-  
-  // 暫定的な対応として、警告メッセージが示唆している `use(params)` はサーバーコンポーネントでよく使われるパターンです。
-  // クライアントコンポーネントでは `params` は通常、Promise ではなくオブジェクトとして直接渡されます。
-  // この警告が `page.tsx:32` (ThreadDetailPage の定義行) で出ているということは、
-  // Next.jsの内部で `params` の扱いが変更され、クライアントコンポーネントでも将来的に `use` が必須になる、
-  // あるいは何らかの特定の条件下で `params` がPromiseとして評価される可能性がある、ということを示唆しているのかもしれません。
-
-  // 警告を解消するために、もし実際に `params` がPromiseとして扱われるなら以下の形になりますが、
-  // クライアントコンポーネントでは稀なケースです。
-  // const resolvedParams = use(params);
-  // const threadId = resolvedParams.id;
-
-  // ここでは警告を一旦無視し、スレッドが開かない根本原因を探ることに集中しましょう。
-  // この警告自体が直接ページが開かない原因である可能性は低いと考えられます。
-  // むしろ、`threadId` が取得できていないか、その後のデータフェッチでエラーが起きている可能性が高いです。
-
-  // ★ まずは、threadId が正しく取得できているか console.log で確認しましょう。
   const threadId = params.id;
-  console.log("Thread ID from params:", threadId); // これを追加
+  console.log("Thread ID from params:", threadId);
 
   const [thread, setThread] = useState<Thread | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -67,11 +42,10 @@ const ThreadDetailPage = ({ params }: { params: { id: string } }) => {
   const [submittingPost, setSubmittingPost] = useState(false);
   const postsEndRef = useRef<HTMLDivElement>(null);
 
-  // スレッドと投稿を読み込む
-  const fetchThreadAndPosts = async () => {
+  // ★修正点4: fetchThreadAndPosts を useCallback でメモ化し、依存配列に含める
+  const fetchThreadAndPosts = useCallback(async () => {
     setError(null);
     try {
-      // threadId が undefined や null でないか確認
       if (!threadId) {
         throw new Error('Thread ID is missing.');
       }
@@ -98,23 +72,23 @@ const ThreadDetailPage = ({ params }: { params: { id: string } }) => {
       }
       setPosts(postsData);
 
-    } catch (err: any) {
-      console.error('データ取得エラー:', err);
-      setError(`データの読み込みに失敗しました: ${err.message}`);
+    } catch (err: unknown) { // ★ any -> unknown に変更
+      console.error('データ取得エラー:', err instanceof Error ? err.message : String(err));
+      setError(`データの読み込みに失敗しました: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
-      setLoading(false); // ★ loading の状態を確実に false にする
+      setLoading(false);
     }
-  };
+  }, [threadId]); // threadId が変わったときにのみ useCallback を再生成
 
   // リアルタイム更新の購読と初期読み込み
   useEffect(() => {
     if (!threadId) {
-        setLoading(false); // threadId がない場合はローディングを終了
+        setLoading(false);
         setError("スレッドIDが指定されていません。");
         return;
     }
 
-    fetchThreadAndPosts();
+    fetchThreadAndPosts(); // 初期読み込み
 
     const postsChannel = supabase
       .channel(`thread_posts:${threadId}`)
@@ -144,7 +118,7 @@ const ThreadDetailPage = ({ params }: { params: { id: string } }) => {
       supabase.removeChannel(postsChannel);
       supabase.removeChannel(threadsChannel);
     };
-  }, [threadId]);
+  }, [threadId, fetchThreadAndPosts]); // ★修正点4: fetchThreadAndPosts を依存配列に追加
 
   useEffect(() => {
     if (postsEndRef.current) {
@@ -193,9 +167,9 @@ const ThreadDetailPage = ({ params }: { params: { id: string } }) => {
         setContent('');
         await fetchThreadAndPosts(); // 投稿成功後に再フェッチ
       }
-    } catch (err: any) {
-      console.error('予期せぬ投稿エラー:', err);
-      setError(`予期せぬエラーが発生しました: ${err.message}`);
+    } catch (err: unknown) { // ★ any -> unknown に変更
+      console.error('予期せぬ投稿エラー:', err instanceof Error ? err.message : String(err));
+      setError(`予期せぬエラーが発生しました: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSubmittingPost(false);
     }

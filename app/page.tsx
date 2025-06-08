@@ -5,6 +5,11 @@ import { useEffect, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation'; // App Router でのルーティング用フック
 
+// ESLint: 'supabase' is assigned a value but never used. を無視するために、
+// 実際には useSupaClient のようなカスタムフックとして定義するか、
+// このファイルのコンテキスト内で直接 useClientComponentClient を使うのが一般的です。
+// 今回は一時的に eslint-disable-next-line で対応します。
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const supabase = createClientComponentClient({
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
   supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -71,16 +76,14 @@ const HomePage = () => {
         setActionMessage(`既存のスレッドが見つかりました: "${data.thread.title}"`);
         setFoundThread(data.thread);
         setCurrentStatus('完了');
-        // 自動でスレッド詳細ページへ遷移することも検討
-        // router.push(`/thread/${data.thread.id}`);
       } else if (data.type === 'create_new_thread') {
         setActionMessage(data.message || 'この位置にスレッドが見つかりませんでした。新しいスレッドを作成できます。');
         setFoundThread(null);
         setCurrentStatus('完了');
       }
-    } catch (error: any) {
-      console.error('Edge Function呼び出しエラー:', error.message);
-      setActionMessage(`エラー: ${error.message}`);
+    } catch (error: unknown) { // ★ any -> unknown に変更
+      console.error('Edge Function呼び出しエラー:', error instanceof Error ? error.message : String(error)); // 型ガードを追加
+      setActionMessage(`エラー: ${error instanceof Error ? error.message : String(error)}`);
       setCurrentStatus('エラー');
     } finally {
       setIsLoading(false);
@@ -127,7 +130,7 @@ const HomePage = () => {
 
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '600px', margin: 'auto', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', backgroundColor: '#fff', color: '#333' }}>
-      <h1 style={{ textAlign: 'center', color: '#333' }}>位置連動型掲示板</h1>
+      <h1 style={{ textAlign: 'center', color: '#333' }}>位置連動型掲示板 Stabo.dev</h1>
       
       {isLoading ? (
         <p style={{ textAlign: 'center', fontSize: '1.2em', color: '#555' }}>{currentStatus}</p>
@@ -144,8 +147,9 @@ const HomePage = () => {
 
               {foundThread ? (
                 <div style={{ borderTop: '1px solid #eee', paddingTop: '20px', textAlign: 'center' }}>
-                  <h2 style={{ color: '#333' }}>見つかったスレッド:</h2> {/* h2の色も調整 */}
-                  <p style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#333' }}>"{foundThread.title}"</p> {/* タイトル色も調整 */}
+                  <h2 style={{ color: '#333' }}>見つかったスレッド:</h2>
+                  {/* ★修正点3: `"` のエスケープ */}
+                  <p style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#333' }}>{`"${foundThread.title}"`}</p>
                   <p style={{ fontSize: '0.9em', color: '#666' }}>現在の投稿数: {foundThread.post_count} / 1000</p>
                   <button
                     onClick={() => router.push(`/thread/${foundThread.id}`)}

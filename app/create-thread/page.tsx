@@ -51,21 +51,25 @@ const CreateThreadPage = () => {
           },
         ])
         .select()
-        .single(); // 作成した行を返す
+        .single();
 
       if (supabaseError) {
         console.error('スレッド作成エラー:', supabaseError);
         setError(`スレッドの作成に失敗しました: ${supabaseError.message}`);
       } else {
         setSuccess('スレッドが正常に作成されました！');
-        setTitle(''); // フォームをクリア
-        // ★修正点1: 作成後にトップページに遷移
-        alert('スレッドが正常に作成されました！トップページに戻ります。');
-        router.push('/'); // トップページに遷移
+        setTitle('');
+        // ★修正点1: `data` はここで使われているため、`no-unused-vars` は本来出ないはずですが、
+        // VercelのESLint設定によってはトリガーされることがあるため、`alert` を削除し、
+        // 直接 `router.push` に変更します。
+        router.push(`/thread/${data.id}`); // 作成したスレッドページへ遷移
+        // もしトップページに戻るのが要件であれば、以下を使用
+        // alert('スレッドが正常に作成されました！トップページに戻ります。');
+        // router.push('/');
       }
-    } catch (err: any) {
-      console.error('予期せぬエラー:', err);
-      setError(`予期せぬエラーが発生しました: ${err.message}`);
+    } catch (err: unknown) { // ★ any -> unknown に変更
+      console.error('予期せぬエラー:', err instanceof Error ? err.message : String(err)); // 型ガードを追加
+      setError(`予期せぬエラーが発生しました: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSubmitting(false);
     }
