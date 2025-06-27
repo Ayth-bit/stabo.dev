@@ -1,21 +1,35 @@
+// app/layout.tsx
+
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+// ★ Google Fontsから読み込みたいフォントをインポート
+import { Noto_Sans_JP, Yuji_Syuku, Zen_Kaku_Gothic_New } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// ★ 各フォントの設定
+const notoSansJp = Noto_Sans_JP({
   subsets: ["latin"],
+  variable: "--font-noto-sans-jp", // CSS変数として定義
+  weight: ["400", "700"], // 必要な太さを指定
+  display: 'swap',
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const yujiSyuku = Yuji_Syuku({
   subsets: ["latin"],
+  variable: "--font-yuji-syuku", // 手書き風フォント
+  weight: "400",
+  display: 'swap',
 });
 
-// ここにメタデータを定義します
+const zenKakuGothicNew = Zen_Kaku_Gothic_New({
+  subsets: ["latin"],
+  variable: "--font-zen-kaku-gothic-new", // おしゃれなゴシック体
+  weight: ["400", "700"],
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
-  title: 'stabo.dev', // ← ここを変更！
-  description: 'stabo.dev - your unique app experience "Stabo.world", change the world here.', // アプリケーションの説明も変更
+  title: 'stabo.dev',
+  description: 'stabo.dev - your unique app experience "Stabo.world", change the world here.',
 };
 
 export default function RootLayout({
@@ -24,9 +38,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
+    // ★ bodyのclassNameに新しいフォント変数を追加
     <html lang="ja">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${notoSansJp.variable} ${yujiSyuku.variable} ${zenKakuGothicNew.variable} antialiased`}
       >
         {children}
       </body>

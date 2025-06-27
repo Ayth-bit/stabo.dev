@@ -36,9 +36,11 @@ type EdgeFunctionResponse = {
 };
 
 // 1km圏外のスレッドリストを表示するコンポーネント
+// app/page.tsx の DistantThreadsList コンポーネントを修正
+
 const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
   if (threads.length === 0) {
-    return null; // 表示するスレッドがない場合は何も描画しない
+    return null;
   }
 
   return (
@@ -54,8 +56,9 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
               style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
             >
               <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0 }}>{thread.title}</p>
+              {/* ★★★ この p タグを修正 ★★★ */}
               <p style={{ fontSize: '0.8em', color: '#777', margin: '5px 0 0' }}>
-                距離: {thread.distance.toFixed(2)} km | 座標: {thread.latitude.toFixed(4)}, {thread.longitude.toFixed(4)}
+                投稿数: {thread.post_count} | 距離: {thread.distance.toFixed(2)} km
               </p>
             </a>
           </li>

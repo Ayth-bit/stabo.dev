@@ -19,12 +19,14 @@ type Thread = {
   post_count: number;
 };
 
+// Postの型にfont_familyを追加
 type Post = {
   id: string;
   thread_id: string;
   author_name: string | null;
   content: string;
   created_at: string;
+  font_family: string | null; // フォント情報を格納
 };
 
 const MAX_POSTS = parseInt(process.env.NEXT_PUBLIC_MAX_POST_COUNT || '1000', 10);
@@ -56,6 +58,10 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
   const [authorName, setAuthorName] = useState('');
   const [content, setContent] = useState('');
   const [submittingPost, setSubmittingPost] = useState(false);
+  
+  // ★ 修正: CSS変数名をStateの初期値に設定
+  const [selectedFont, setSelectedFont] = useState('var(--font-noto-sans-jp)'); 
+  
   const postsEndRef = useRef<HTMLDivElement>(null);
   
   const fetchThreadAndPosts = useCallback(async () => {
@@ -185,6 +191,7 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
               thread_id: threadId,
               author_name: authorName.trim() || null,
               content: content.trim(),
+              font_family: selectedFont,
             },
           ]);
 
@@ -202,7 +209,6 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
           setSubmittingPost(false);
         }
       },
-      // ★★★ ここを修正しました ★★★
       () => {
         setError('位置情報の取得に失敗しました。投稿するには位置情報へのアクセスを許可してください。');
         setSubmittingPost(false);
@@ -216,7 +222,7 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
     return <div style={{ textAlign: 'center', padding: '20px', backgroundColor: '#fff', color: '#333' }}>スレッドを読み込み中...</div>;
   }
 
-  if (error && !submittingPost) {
+  if (error && !thread) {
     return <div style={{ color: 'red', textAlign: 'center', padding: '20px', backgroundColor: '#fff' }}>エラー: {error}</div>;
   }
 
@@ -225,7 +231,7 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
   }
   
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '800px', margin: 'auto', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', backgroundColor: '#fff', color: '#333' }}>
+    <div style={{ padding: '20px', fontFamily: 'var(--font-noto-sans-jp)', maxWidth: '800px', margin: 'auto', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', backgroundColor: '#fff', color: '#333' }}>
       <h1 style={{ textAlign: 'center', color: '#333' }}>{thread.title}</h1>
       <p style={{ textAlign: 'center', fontSize: '0.9em', color: '#777', marginBottom: '20px' }}>
         作成日時: {new Date(thread.created_at).toLocaleString()} | 投稿数: {thread.post_count} / {MAX_POSTS}
@@ -243,7 +249,10 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
                   <strong style={{ color: '#333' }}>{post.author_name || '匿名'}</strong>{' '}
                   <span style={{ fontSize: '0.8em', color: '#999' }}>({new Date(post.created_at).toLocaleString()})</span>
                 </p>
-                <p style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#333' }}>{post.content}</p>
+                {/* ★ pタグのstyleを修正 */}
+                <p style={{ fontFamily: post.font_family || 'var(--font-noto-sans-jp)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#333' }}>
+                  {post.content}
+                </p>
               </div>
             ))
           )}
@@ -256,24 +265,10 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
         {thread.post_count >= MAX_POSTS && (
           <p style={{ color: 'orange', fontWeight: 'bold', textAlign: 'center', marginBottom: '15px' }}>
             このスレッドは{MAX_POSTS}レスに到達しました。新しい投稿はできません。
-            <br />
-            <button
-              onClick={() => router.push('/')}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#007bff',
-                cursor: 'pointer',
-                fontSize: '0.9em',
-                textDecoration: 'underline',
-                marginTop: '5px'
-              }}
-            >
-              トップページに戻り、新規スレッドを作成してください
-            </button>
           </p>
         )}
         {error && <p style={{ color: 'red', textAlign: 'center', paddingBottom: '10px' }}>{error}</p>}
+        
         <form onSubmit={handlePostSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <div>
             <label htmlFor="authorName" style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#333' }}>名前 (任意):</label>
@@ -294,11 +289,31 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={5}
+              required
               disabled={submittingPost || thread.post_count >= MAX_POSTS}
               style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box', resize: 'vertical', backgroundColor: '#fff', color: '#333' }}
               placeholder="コメントを入力してください"
             ></textarea>
           </div>
+          
+          {/* ★ ドロップダウンを修正 */}
+          <div>
+            <label htmlFor="font-select" style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#333' }}>フォント:</label>
+            <select
+              id="font-select"
+              value={selectedFont}
+              onChange={(e) => setSelectedFont(e.target.value)}
+              disabled={submittingPost || thread.post_count >= MAX_POSTS}
+              style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', color: '#333' }}
+            >
+              <option value="var(--font-noto-sans-jp)">ゴシック体 (標準)</option>
+              <option value="var(--font-yuji-syuku)">手書き風 (Yuji Syuku)</option>
+              <option value="var(--font-zen-kaku)">やさしいゴシック (Zen Kaku)</option>
+              <option value="serif">明朝体</option>
+              <option value="monospace">等幅フォント</option>
+            </select>
+          </div>
+          
           <button
             type="submit"
             disabled={submittingPost || thread.post_count >= MAX_POSTS}

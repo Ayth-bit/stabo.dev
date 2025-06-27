@@ -3,6 +3,9 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* ★ 読み込んだGoogle FontsをCSS変数として再定義 */
+  --font-yuji-syuku: '__Yuji_Syuku_271a73', '__Yuji_Syuku_Fallback_271a73';
+  --font-zen-kaku: '__Zen_Kaku_Gothic_New_a81977', '__Zen_Kaku_Gothic_New_Fallback_a81977';
 }
 
 @theme inline {
