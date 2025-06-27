@@ -5,11 +5,6 @@ import { useEffect, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 
-// ESLint: 'supabase' is assigned a value but never used. を無視するために、
-// 実際には useSupaClient のようなカスタムフックとして定義するか、
-// このファイルのコンテキスト内で直接 useClientComponentClient を使うのが一般的です。
-// 今回は一時的に eslint-disable-next-line で対応します。
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const supabase = createClientComponentClient({
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
   supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -29,6 +24,10 @@ type ThreadInfo = {
   post_count: number;
 };
 
+type DistantThreadInfo = ThreadInfo & {
+  distance: number;
+};
+
 type EdgeFunctionResponse = {
   type: 'found_thread' | 'create_new_thread';
   thread?: ThreadInfo;
@@ -36,57 +35,85 @@ type EdgeFunctionResponse = {
   error?: string;
 };
 
-const HomePage = () => {
-  const router = useRouter(); // useRouter フックを初期化
+// 新しく追加する遠方のスレッドリストコンポーネント
+// app/page.tsx の DistantThreadsList コンポーネント
 
-  const [location, setLocation] = useState<GeolocationResult>({
-    latitude: null,
-    longitude: null,
-    error: null,
-  });
+const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
+  if (threads.length === 0) {
+    return null; 
+  }
+
+  return (
+    <div style={{ marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
+      <h2 style={{ textAlign: 'center', color: '#555' }}>近くの他のスレッド</h2>
+      <ul style={{ listStyle: 'none', padding: 0 }}>
+        {threads.map((thread) => (
+          <li key={thread.id} style={{ marginBottom: '15px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px' }}>
+            {/* ★★★ この a タグの href を修正しました ★★★ */}
+            <a
+              href={`https://maps.google.com/?q=${thread.latitude},${thread.longitude}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
+            >
+              <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0 }}>{thread.title}</p>
+              <p style={{ fontSize: '0.8em', color: '#777', margin: '5px 0 0' }}>
+                距離: {thread.distance.toFixed(2)} km | 座標: {thread.latitude.toFixed(4)}, {thread.longitude.toFixed(4)}
+              </p>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+const HomePage = () => {
+  const router = useRouter();
+
+  const [location, setLocation] = useState<GeolocationResult>({ latitude: null, longitude: null, error: null });
   const [isLoading, setIsLoading] = useState(true);
   const [currentStatus, setCurrentStatus] = useState<string>('位置情報を取得中...');
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [foundThread, setFoundThread] = useState<ThreadInfo | null>(null);
+  const [distantThreads, setDistantThreads] = useState<DistantThreadInfo[]>([]); // ★ 遠方のスレッドを格納するstate
 
   const handleLocationProcessed = async (lat: number, lon: number) => {
     setCurrentStatus('スレッドを検索中...');
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/handle-location`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
-          latitude: lat,
-          longitude: lon,
-        }),
+      // 1km圏内のスレッドを検索
+      const { data: mainData, error: mainError } = await supabase.functions.invoke<EdgeFunctionResponse>('handle-location', {
+        body: { latitude: lat, longitude: lon },
       });
+      if (mainError) throw mainError;
+      if (mainData.error) throw new Error(mainData.error);
 
-      const data: EdgeFunctionResponse = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Edge Functionの呼び出しに失敗しました。');
-      }
-
-      console.log('Edge Functionからの応答:', data);
-
-      if (data.type === 'found_thread' && data.thread) {
-        setActionMessage(`既存のスレッドが見つかりました: "${data.thread.title}"`);
-        setFoundThread(data.thread);
-        setCurrentStatus('完了');
-      } else if (data.type === 'create_new_thread') {
-        setActionMessage(data.message || 'この位置にスレッドが見つかりませんでした。新しいスレッドを作成できます。');
+      if (mainData.type === 'found_thread' && mainData.thread) {
+        setActionMessage(`既存のスレッドが見つかりました: "${mainData.thread.title}"`);
+        setFoundThread(mainData.thread);
+      } else if (mainData.type === 'create_new_thread') {
+        setActionMessage(mainData.message || 'この位置にスレッドが見つかりませんでした。');
         setFoundThread(null);
-        setCurrentStatus('完了');
       }
+      
+      // ★ 1km圏外のスレッドを検索
+      const { data: distantData, error: distantError } = await supabase.functions.invoke<DistantThreadInfo[]>('get-distant-threads', {
+        body: { latitude: lat, longitude: lon },
+      });
+      if (distantError) {
+          console.warn('Could not fetch distant threads:', distantError.message);
+      } else {
+          setDistantThreads(distantData || []);
+      }
+
     } catch (error: unknown) {
-      console.error('Edge Function呼び出しエラー:', error instanceof Error ? error.message : String(error));
-      setActionMessage(`エラー: ${error instanceof Error ? error.message : String(error)}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Function invocation error:', errorMessage);
+      setActionMessage(`エラー: ${errorMessage}`);
       setCurrentStatus('エラー');
     } finally {
       setIsLoading(false);
+      setCurrentStatus('完了');
     }
   };
 
@@ -111,11 +138,7 @@ const HomePage = () => {
             case error.TIMEOUT:
               errorMessage = '位置情報の取得がタイムアウトしました。';
               break;
-            // ★修正点: UNKNOWN_ERROR は GeolocationPositionError に存在しないため削除し、default に統合
-            // case error.UNKNOWN_ERROR: // この行を削除
-            //   errorMessage = '不明なエラーが発生しました。'; // この行も削除
-            //   break; // この行も削除
-            default: // 代わりに default ケースを追加
+            default:
               errorMessage = '不明なエラーが発生しました。';
               break;
           }
@@ -134,7 +157,7 @@ const HomePage = () => {
 
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '600px', margin: 'auto', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', backgroundColor: '#fff', color: '#333' }}>
-      <h1 style={{ textAlign: 'center', color: '#333' }}>Stabo.dev(Classic)</h1>
+      <h1 style={{ textAlign: 'center', color: '#333' }}>stabo.dev</h1>
       
       {isLoading ? (
         <p style={{ textAlign: 'center', fontSize: '1.2em', color: '#555' }}>{currentStatus}</p>
@@ -192,6 +215,8 @@ const HomePage = () => {
                   </button>
                 </div>
               )}
+              {/* ★ 新しいコンポーネントをここに追加 */}
+              <DistantThreadsList threads={distantThreads} />
             </>
           )}
         </div>

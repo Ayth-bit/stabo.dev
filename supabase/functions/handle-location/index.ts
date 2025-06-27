@@ -49,16 +49,18 @@ serve(async (req) => {
     }
 
     // スレッド検索の半径（キロメートル）を環境変数から取得
-    // デプロイ時に `supabase secrets set SEARCH_RADIUS_KM=1.0` のように設定可能
-    const SEARCH_RADIUS_KM = parseFloat(Deno.env.get('SEARCH_RADIUS_KM') || '1.0'); // デフォルト1km
+    // スレッド検索の半径（キロメートル）...
+    const SEARCH_RADIUS_KM = parseFloat(Deno.env.get('SEARCH_RADIUS_KM') || '1.0');
 
-    // 1. 全てのスレッドを取得し、距離を計算して、指定半径内の最も近いスレッドを見つける
-    // ここでは、PostgreSQLの `calculate_distance` RPC関数を使用します。
+    // ★ 投稿数の上限を環境変数から取得
+    const MAX_POST_COUNT = parseInt(Deno.env.get('MAX_POST_COUNT') || '1000', 10);
+
+    // 1. 全てのスレッドを取得し、...
     // 1000レスに達したスレッドは対象外とします。
     const { data: allThreads, error: fetchThreadsError } = await supabase
       .from('threads')
       .select('id, title, latitude, longitude, post_count')
-      .not('post_count', 'gte', 1000); // 1000レス未満のスレッドのみ対象
+      .not('post_count', 'gte', MAX_POST_COUNT); // ★ ここを修正
 
     if (fetchThreadsError) {
       console.error('Error fetching threads:', fetchThreadsError);

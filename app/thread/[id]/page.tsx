@@ -27,13 +27,27 @@ type Post = {
   created_at: string;
 };
 
+const MAX_POSTS = parseInt(process.env.NEXT_PUBLIC_MAX_POST_COUNT || '1000', 10);
+
+// ★ 距離計算ヘルパー関数を追加
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371; // 地球の半径 (km)
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // 距離 (km)
+};
+
+
 const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
   const router = useRouter();
   
   const resolvedParams = React.use(params);
   const threadId = resolvedParams.id;
-  
-  console.log("Thread ID from params (resolved):", threadId);
 
   const [thread, setThread] = useState<Thread | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -44,7 +58,8 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
   const [content, setContent] = useState('');
   const [submittingPost, setSubmittingPost] = useState(false);
   const postsEndRef = useRef<HTMLDivElement>(null);
-
+  
+  // ... (fetchThreadAndPosts と useEffect は変更なし)
   const fetchThreadAndPosts = useCallback(async () => {
     setError(null);
     try {
@@ -127,6 +142,8 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
     }
   }, [posts]);
 
+
+  // ★ handlePostSubmit を大幅に修正
   const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittingPost(true);
@@ -144,56 +161,87 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
       return;
     }
 
-    if (thread.post_count >= 1000) {
-      setError('このスレッドは1000レスに到達しました。新しいスレッドを作成してください。');
+    if (thread.post_count >= MAX_POSTS) {
+      setError(`このスレッドは${MAX_POSTS}レスに到達しました。`);
       setSubmittingPost(false);
       return;
     }
 
-    try {
-      const { error: insertError } = await supabase
-        .from('posts')
-        .insert([
-          {
-            thread_id: threadId,
-            author_name: authorName.trim() || null,
-            content: content.trim(),
-          },
-        ]);
-
-      if (insertError) {
-        console.error('投稿エラー:', insertError);
-        setError(`投稿に失敗しました: ${insertError.message}`);
-      } else {
-        setContent('');
-        await fetchThreadAndPosts();
-      }
-    } catch (err: unknown) {
-      console.error('予期せぬ投稿エラー:', err instanceof Error ? err.message : String(err));
-      setError(`予期せぬエラーが発生しました: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
+    // 1. 現在地を取得
+    if (!navigator.geolocation) {
+      setError('お使いのブラウザは位置情報に対応していません。');
       setSubmittingPost(false);
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude: currentLat, longitude: currentLon } = position.coords;
+
+        // 2. 距離を計算
+        const distance = calculateDistance(currentLat, currentLon, thread.latitude, thread.longitude);
+
+        // 3. 距離が1km以上ならエラー
+        if (distance > 1) {
+          setError(`スレッドから1km以上離れています（現在地との距離: ${distance.toFixed(2)}km）。投稿するには1km圏内にいる必要があります。`);
+          setSubmittingPost(false);
+          return;
+        }
+
+        // 4. 1km圏内なら投稿処理を続行
+        try {
+          const { error: insertError } = await supabase.from('posts').insert([
+            {
+              thread_id: threadId,
+              author_name: authorName.trim() || null,
+              content: content.trim(),
+            },
+          ]);
+
+          if (insertError) {
+            console.error('投稿エラー:', insertError);
+            setError(`投稿に失敗しました: ${insertError.message}`);
+          } else {
+            setContent('');
+            // 投稿後に再フェッチする代わりに、リアルタイム更新に任せることもできますが、
+            // post_countを即時反映させるために再フェッチが確実です。
+            await fetchThreadAndPosts(); 
+          }
+        } catch (err: unknown) {
+          console.error('予期せぬ投稿エラー:', err);
+          setError(`予期せぬエラーが発生しました: ${err instanceof Error ? err.message : String(err)}`);
+        } finally {
+          setSubmittingPost(false);
+        }
+      },
+      (error) => {
+        // 位置情報取得失敗時のエラーハンドリング
+        setError('位置情報の取得に失敗しました。投稿するには位置情報へのアクセスを許可してください。');
+        setSubmittingPost(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   };
+
 
   if (loading) {
     return <div style={{ textAlign: 'center', padding: '20px', backgroundColor: '#fff', color: '#333' }}>スレッドを読み込み中...</div>;
   }
 
-  if (error) {
-    // ★修正点: colorプロパティの重複を解消
+  if (error && !submittingPost) { // submitting中のエラーはフォームの下に表示するので、ここでは表示しない
     return <div style={{ color: 'red', textAlign: 'center', padding: '20px', backgroundColor: '#fff' }}>エラー: {error}</div>;
   }
 
   if (!thread) {
     return <div style={{ textAlign: 'center', padding: '20px', backgroundColor: '#fff', color: '#333' }}>スレッドが見つかりませんでした。</div>;
   }
-
+  
+  // 投稿フォーム以下のJSXは、MAX_POSTSを参照するように変更してください (前のセクションで実施済み)
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '800px', margin: 'auto', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', backgroundColor: '#fff', color: '#333' }}>
       <h1 style={{ textAlign: 'center', color: '#333' }}>{thread.title}</h1>
       <p style={{ textAlign: 'center', fontSize: '0.9em', color: '#777', marginBottom: '20px' }}>
-        作成日時: {new Date(thread.created_at).toLocaleString()} | 投稿数: {thread.post_count} / 1000
+        作成日時: {new Date(thread.created_at).toLocaleString()} | 投稿数: {thread.post_count} / {MAX_POSTS}
       </p>
 
       <div style={{ borderTop: '1px solid #eee', paddingTop: '20px' }}>
@@ -218,9 +266,9 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
 
       <div style={{ borderTop: '1px solid #eee', paddingTop: '20px', marginTop: '20px' }}>
         <h2 style={{ color: '#555' }}>新規投稿</h2>
-        {thread.post_count >= 1000 && (
+        {thread.post_count >= MAX_POSTS && (
           <p style={{ color: 'orange', fontWeight: 'bold', textAlign: 'center', marginBottom: '15px' }}>
-            このスレッドは1000レスに到達しました。新しい投稿はできません。
+            このスレッドは{MAX_POSTS}レスに到達しました。新しい投稿はできません。
             <br />
             <button
               onClick={() => router.push('/')}
@@ -238,7 +286,7 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
             </button>
           </p>
         )}
-        {error && <p style={{ color: 'red', textAlign: 'center' }}>{error}</p>}
+        {error && <p style={{ color: 'red', textAlign: 'center', paddingBottom: '10px' }}>{error}</p>}
         <form onSubmit={handlePostSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <div>
             <label htmlFor="authorName" style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#333' }}>名前 (任意):</label>
@@ -247,7 +295,7 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
               id="authorName"
               value={authorName}
               onChange={(e) => setAuthorName(e.target.value)}
-              disabled={submittingPost || thread.post_count >= 1000}
+              disabled={submittingPost || thread.post_count >= MAX_POSTS}
               style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box', backgroundColor: '#fff', color: '#333' }}
               placeholder="匿名"
             />
@@ -259,22 +307,22 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={5}
-              disabled={submittingPost || thread.post_count >= 1000}
+              disabled={submittingPost || thread.post_count >= MAX_POSTS}
               style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box', resize: 'vertical', backgroundColor: '#fff', color: '#333' }}
               placeholder="コメントを入力してください"
             ></textarea>
           </div>
           <button
             type="submit"
-            disabled={submittingPost || thread.post_count >= 1000}
+            disabled={submittingPost || thread.post_count >= MAX_POSTS}
             style={{
               padding: '12px 20px',
               fontSize: '1.1em',
-              backgroundColor: submittingPost || thread.post_count >= 1000 ? '#cccccc' : '#007bff',
+              backgroundColor: submittingPost || thread.post_count >= MAX_POSTS ? '#cccccc' : '#007bff',
               color: 'white',
               border: 'none',
               borderRadius: '5px',
-              cursor: submittingPost || thread.post_count >= 1000 ? 'not-allowed' : 'pointer',
+              cursor: submittingPost || thread.post_count >= MAX_POSTS ? 'not-allowed' : 'pointer',
               transition: 'background-color 0.2s',
             }}
           >

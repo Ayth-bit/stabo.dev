@@ -324,3 +324,9 @@ entrypoint = "./functions/handle-location/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/handle-location/*.html" ]
+
+[functions.get-distant-threads]
+enabled = true
+verify_jwt = true
+import_map = "./functions/get-distant-threads/deno.json"
+entrypoint = "./functions/get-distant-threads/index.ts"
