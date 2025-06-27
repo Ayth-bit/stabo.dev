@@ -35,12 +35,9 @@ type EdgeFunctionResponse = {
   error?: string;
 };
 
-// 新しく追加する遠方のスレッドリストコンポーネント
-// app/page.tsx の DistantThreadsList コンポーネント
-
 const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
   if (threads.length === 0) {
-    return null; 
+    return null;
   }
 
   return (
@@ -49,7 +46,6 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {threads.map((thread) => (
           <li key={thread.id} style={{ marginBottom: '15px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px' }}>
-            {/* ★★★ この a タグの href を修正しました ★★★ */}
             <a
               href={`https://maps.google.com/?q=${thread.latitude},${thread.longitude}`}
               target="_blank"
@@ -76,7 +72,7 @@ const HomePage = () => {
   const [currentStatus, setCurrentStatus] = useState<string>('位置情報を取得中...');
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [foundThread, setFoundThread] = useState<ThreadInfo | null>(null);
-  const [distantThreads, setDistantThreads] = useState<DistantThreadInfo[]>([]); // ★ 遠方のスレッドを格納するstate
+  const [distantThreads, setDistantThreads] = useState<DistantThreadInfo[]>([]);
 
   const handleLocationProcessed = async (lat: number, lon: number) => {
     setCurrentStatus('スレッドを検索中...');
@@ -85,8 +81,14 @@ const HomePage = () => {
       const { data: mainData, error: mainError } = await supabase.functions.invoke<EdgeFunctionResponse>('handle-location', {
         body: { latitude: lat, longitude: lon },
       });
+
+      // ★★★ ここから修正 ★★★
       if (mainError) throw mainError;
+      if (!mainData) { // mainDataがnullでないことを確認
+        throw new Error('Function did not return data.');
+      }
       if (mainData.error) throw new Error(mainData.error);
+      // ★★★ ここまで修正 ★★★
 
       if (mainData.type === 'found_thread' && mainData.thread) {
         setActionMessage(`既存のスレッドが見つかりました: "${mainData.thread.title}"`);
@@ -96,15 +98,18 @@ const HomePage = () => {
         setFoundThread(null);
       }
       
-      // ★ 1km圏外のスレッドを検索
+      // 1km圏外のスレッドを検索
       const { data: distantData, error: distantError } = await supabase.functions.invoke<DistantThreadInfo[]>('get-distant-threads', {
         body: { latitude: lat, longitude: lon },
       });
+      
+      // ★★★ ここから修正 ★★★
       if (distantError) {
           console.warn('Could not fetch distant threads:', distantError.message);
-      } else {
-          setDistantThreads(distantData || []);
+      } else if (distantData) { // distantDataがnullでないことを確認
+          setDistantThreads(distantData);
       }
+      // ★★★ ここまで修正 ★★★
 
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -215,7 +220,6 @@ const HomePage = () => {
                   </button>
                 </div>
               )}
-              {/* ★ 新しいコンポーネントをここに追加 */}
               <DistantThreadsList threads={distantThreads} />
             </>
           )}
