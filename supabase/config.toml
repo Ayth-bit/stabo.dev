@@ -325,6 +325,8 @@ entrypoint = "./functions/handle-location/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/handle-location/*.html" ]
 
+# supabase/config.toml に追記
+
 [functions.get-distant-threads]
 enabled = true
 verify_jwt = true

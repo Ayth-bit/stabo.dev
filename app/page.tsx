@@ -35,9 +35,10 @@ type EdgeFunctionResponse = {
   error?: string;
 };
 
+// 1km圏外のスレッドリストを表示するコンポーネント
 const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
   if (threads.length === 0) {
-    return null;
+    return null; // 表示するスレッドがない場合は何も描画しない
   }
 
   return (
@@ -72,7 +73,7 @@ const HomePage = () => {
   const [currentStatus, setCurrentStatus] = useState<string>('位置情報を取得中...');
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [foundThread, setFoundThread] = useState<ThreadInfo | null>(null);
-  const [distantThreads, setDistantThreads] = useState<DistantThreadInfo[]>([]);
+  const [distantThreads, setDistantThreads] = useState<DistantThreadInfo[]>([]); // ★新しいState
 
   const handleLocationProcessed = async (lat: number, lon: number) => {
     setCurrentStatus('スレッドを検索中...');
@@ -82,13 +83,11 @@ const HomePage = () => {
         body: { latitude: lat, longitude: lon },
       });
 
-      // ★★★ ここから修正 ★★★
       if (mainError) throw mainError;
-      if (!mainData) { // mainDataがnullでないことを確認
-        throw new Error('Function did not return data.');
+      if (!mainData) {
+        throw new Error('Function "handle-location" did not return data.');
       }
       if (mainData.error) throw new Error(mainData.error);
-      // ★★★ ここまで修正 ★★★
 
       if (mainData.type === 'found_thread' && mainData.thread) {
         setActionMessage(`既存のスレッドが見つかりました: "${mainData.thread.title}"`);
@@ -98,18 +97,18 @@ const HomePage = () => {
         setFoundThread(null);
       }
       
-      // 1km圏外のスレッドを検索
+      // ★★★ ここからが追加された機能 ★★★
+      // 1km圏外のスレッドを検索する新しい関数を呼び出す
       const { data: distantData, error: distantError } = await supabase.functions.invoke<DistantThreadInfo[]>('get-distant-threads', {
         body: { latitude: lat, longitude: lon },
       });
       
-      // ★★★ ここから修正 ★★★
       if (distantError) {
           console.warn('Could not fetch distant threads:', distantError.message);
-      } else if (distantData) { // distantDataがnullでないことを確認
+      } else if (distantData) {
           setDistantThreads(distantData);
       }
-      // ★★★ ここまで修正 ★★★
+      // ★★★ ここまで ★★★
 
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -220,6 +219,7 @@ const HomePage = () => {
                   </button>
                 </div>
               )}
+              {/* ★★★ このコンポーネントがリストを描画します ★★★ */}
               <DistantThreadsList threads={distantThreads} />
             </>
           )}
