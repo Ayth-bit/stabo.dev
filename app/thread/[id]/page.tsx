@@ -29,7 +29,6 @@ type Post = {
 
 const MAX_POSTS = parseInt(process.env.NEXT_PUBLIC_MAX_POST_COUNT || '1000', 10);
 
-// ★ 距離計算ヘルパー関数を追加
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
   const R = 6371; // 地球の半径 (km)
   const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -59,7 +58,6 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
   const [submittingPost, setSubmittingPost] = useState(false);
   const postsEndRef = useRef<HTMLDivElement>(null);
   
-  // ... (fetchThreadAndPosts と useEffect は変更なし)
   const fetchThreadAndPosts = useCallback(async () => {
     setError(null);
     try {
@@ -112,7 +110,6 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'posts', filter: `thread_id=eq.${threadId}` },
         (payload) => {
-          console.log('リアルタイム投稿:', payload.new);
           setPosts((prevPosts) => [...prevPosts, payload.new as Post]);
         }
       )
@@ -124,7 +121,6 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'threads', filter: `id=eq.${threadId}` },
         (payload) => {
-          console.log('リアルタイムスレッド更新:', payload.new);
           setThread(payload.new as Thread);
         }
       )
@@ -143,7 +139,6 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
   }, [posts]);
 
 
-  // ★ handlePostSubmit を大幅に修正
   const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittingPost(true);
@@ -167,7 +162,6 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
       return;
     }
 
-    // 1. 現在地を取得
     if (!navigator.geolocation) {
       setError('お使いのブラウザは位置情報に対応していません。');
       setSubmittingPost(false);
@@ -177,18 +171,14 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude: currentLat, longitude: currentLon } = position.coords;
-
-        // 2. 距離を計算
         const distance = calculateDistance(currentLat, currentLon, thread.latitude, thread.longitude);
 
-        // 3. 距離が1km以上ならエラー
         if (distance > 1) {
           setError(`スレッドから1km以上離れています（現在地との距離: ${distance.toFixed(2)}km）。投稿するには1km圏内にいる必要があります。`);
           setSubmittingPost(false);
           return;
         }
 
-        // 4. 1km圏内なら投稿処理を続行
         try {
           const { error: insertError } = await supabase.from('posts').insert([
             {
@@ -203,8 +193,6 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
             setError(`投稿に失敗しました: ${insertError.message}`);
           } else {
             setContent('');
-            // 投稿後に再フェッチする代わりに、リアルタイム更新に任せることもできますが、
-            // post_countを即時反映させるために再フェッチが確実です。
             await fetchThreadAndPosts(); 
           }
         } catch (err: unknown) {
@@ -214,8 +202,8 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
           setSubmittingPost(false);
         }
       },
-      (error) => {
-        // 位置情報取得失敗時のエラーハンドリング
+      // ★★★ ここを修正しました ★★★
+      () => {
         setError('位置情報の取得に失敗しました。投稿するには位置情報へのアクセスを許可してください。');
         setSubmittingPost(false);
       },
@@ -228,7 +216,7 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
     return <div style={{ textAlign: 'center', padding: '20px', backgroundColor: '#fff', color: '#333' }}>スレッドを読み込み中...</div>;
   }
 
-  if (error && !submittingPost) { // submitting中のエラーはフォームの下に表示するので、ここでは表示しない
+  if (error && !submittingPost) {
     return <div style={{ color: 'red', textAlign: 'center', padding: '20px', backgroundColor: '#fff' }}>エラー: {error}</div>;
   }
 
@@ -236,7 +224,6 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
     return <div style={{ textAlign: 'center', padding: '20px', backgroundColor: '#fff', color: '#333' }}>スレッドが見つかりませんでした。</div>;
   }
   
-  // 投稿フォーム以下のJSXは、MAX_POSTSを参照するように変更してください (前のセクションで実施済み)
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '800px', margin: 'auto', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', backgroundColor: '#fff', color: '#333' }}>
       <h1 style={{ textAlign: 'center', color: '#333' }}>{thread.title}</h1>
