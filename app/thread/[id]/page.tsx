@@ -51,11 +51,10 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
 
   const [thread, setThread] = useState<Thread | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
-  // ★ 状態管理を修正: loadingをオブジェクトに変更
   const [pageStatus, setPageStatus] = useState({
     loading: true,
     error: null as string | null,
-    isAccessAllowed: null as boolean | null // null: 確認中, true: 許可, false: 拒否
+    isAccessAllowed: null as boolean | null
   });
 
   const [authorName, setAuthorName] = useState('');
@@ -66,7 +65,6 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
   
   const postsEndRef = useRef<HTMLDivElement>(null);
   
-  // ★ useEffectをアクセス制御ロジックに大幅変更
   useEffect(() => {
     if (!threadId) {
       setPageStatus({ loading: false, error: "スレッドIDが指定されていません。", isAccessAllowed: false });
@@ -75,7 +73,6 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
 
     const checkAccessAndFetchData = async () => {
       try {
-        // 1. スレッド情報を先に取得
         const { data: threadData, error: threadError } = await supabase
           .from('threads')
           .select('*')
@@ -87,7 +84,6 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
         }
         setThread(threadData);
 
-        // 2. ユーザーの現在地を取得
         if (!navigator.geolocation) {
           throw new Error('お使いのブラウザは位置情報に対応していません。');
         }
@@ -97,11 +93,9 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
             const { latitude: currentLat, longitude: currentLon } = position.coords;
             const distance = calculateDistance(currentLat, currentLon, threadData.latitude, threadData.longitude);
 
-            // 3. 距離を判定してアクセスを制御
             if (distance > 1) {
-              setPageStatus({ loading: false, error: 'このスレッドは範囲外です。', isAccessAllowed: false });
+              setPageStatus({ loading: false, error: `このスレッドは範囲外です (距離: ${distance.toFixed(2)}km)。`, isAccessAllowed: false });
             } else {
-              // 4. 許可された場合のみ投稿を取得
               const { data: postsData, error: postsError } = await supabase
                 .from('posts')
                 .select('*')
@@ -114,8 +108,7 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
               setPageStatus({ loading: false, error: null, isAccessAllowed: true });
             }
           },
-          (geoError) => {
-            // 位置情報取得失敗時
+          () => {
             throw new Error('位置情報の取得に失敗しました。アクセス許可を確認してください。');
           }
         );
@@ -127,7 +120,6 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
 
     checkAccessAndFetchData();
 
-    // リアルタイムリスナー (アクセスが許可された後も有効)
     const postsChannel = supabase.channel(`thread_posts:${threadId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts', filter: `thread_id=eq.${threadId}` }, (payload) => { setPosts((prev) => [...prev, payload.new as Post]); }).subscribe();
     const threadsChannel = supabase.channel(`threads:${threadId}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'threads', filter: `id=eq.${threadId}` }, (payload) => { setThread(payload.new as Thread); }).subscribe();
 
@@ -147,10 +139,13 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
   const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittingPost(true);
-    setPageStatus(prev => ({ ...prev, error: null })); // エラーをリセット
+    setPageStatus(prev => ({ ...prev, error: null }));
 
-    if (!content.trim() || !thread) return setSubmittingPost(false);
-
+    if (!content.trim() || !thread) {
+        setSubmittingPost(false);
+        return;
+    }
+    
     try {
       const { error: insertError } = await supabase.from('posts').insert([{
         thread_id: threadId,
@@ -167,62 +162,121 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
     }
   };
 
-  // ★★★ レンダリング部分を状態に応じて変更 ★★★
   if (pageStatus.loading) {
-    return <div style={{ textAlign: 'center', padding: '20px' }}>アクセス確認中...</div>;
+    return <div style={{ textAlign: 'center', padding: '50px', fontFamily: 'sans-serif' }}>アクセス確認中...</div>;
   }
 
   if (!pageStatus.isAccessAllowed || !thread) {
     return (
-      <div style={{ textAlign: 'center', padding: '20px' }}>
-        <p style={{ color: 'red', fontWeight: 'bold' }}>{pageStatus.error || 'アクセスできませんでした。'}</p>
-        <button onClick={() => router.push('/')} style={{ marginTop: '20px' }}>トップページに戻る</button>
+      <div style={{ textAlign: 'center', padding: '50px', fontFamily: 'sans-serif' }}>
+        <p style={{ color: 'red', fontWeight: 'bold', fontSize: '1.2em' }}>{pageStatus.error || 'アクセスできませんでした。'}</p>
+        <button 
+          onClick={() => router.push('/')} 
+          style={{ marginTop: '20px', padding: '10px 20px', cursor: 'pointer', border: '1px solid #ccc', borderRadius: '5px' }}
+        >
+          トップページに戻る
+        </button>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'var(--font-noto-sans-jp)', maxWidth: '800px', margin: 'auto' }}>
-      <h1>{thread.title}</h1>
-      <p>投稿数: {thread.post_count} / {MAX_POSTS}</p>
+    <div style={{ padding: '20px', fontFamily: 'var(--font-noto-sans-jp)', maxWidth: '800px', margin: 'auto', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', backgroundColor: '#fff', color: '#333' }}>
+      <h1 style={{ textAlign: 'center', color: '#333', fontFamily: 'var(--font-zen-kaku)' }}>{thread.title}</h1>
+      <p style={{ textAlign: 'center', fontSize: '0.9em', color: '#777', marginBottom: '20px' }}>
+        作成日時: {new Date(thread.created_at).toLocaleString()} | 投稿数: {thread.post_count} / {MAX_POSTS}
+      </p>
 
-      <div>
-        <h2>投稿一覧</h2>
-        <div>
-          {posts.map(post => (
-            <div key={post.id}>
-              <p><strong>{post.author_name || '匿名'}</strong><span> ({new Date(post.created_at).toLocaleString()})</span></p>
-              <p style={{ fontFamily: post.font_family || 'var(--font-noto-sans-jp)' }}>{post.content}</p>
-            </div>
-          ))}
+      <div style={{ borderTop: '1px solid #eee', paddingTop: '20px' }}>
+        <h2 style={{ color: '#555' }}>投稿一覧</h2>
+        <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px', borderRadius: '4px', backgroundColor: '#f9f9f9', color: '#333' }}>
+          {posts.length === 0 ? (
+            <p style={{ textAlign: 'center', color: '#999' }}>まだ投稿がありません。</p>
+          ) : (
+            posts.map((post, index) => (
+              <div key={post.id} style={{ marginBottom: '10px', paddingBottom: '10px', borderBottom: index < posts.length - 1 ? '1px dashed #eee' : 'none' }}>
+                <p style={{ fontSize: '0.9em', color: '#555', marginBottom: '5px' }}>
+                  <strong style={{ color: '#333' }}>{post.author_name || '匿名'}</strong>{' '}
+                  <span style={{ fontSize: '0.8em', color: '#999' }}>({new Date(post.created_at).toLocaleString()})</span>
+                </p>
+                <p style={{ fontFamily: post.font_family || 'var(--font-noto-sans-jp)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#333' }}>
+                  {post.content}
+                </p>
+              </div>
+            ))
+          )}
           <div ref={postsEndRef} />
         </div>
       </div>
 
-      <div>
-        <h2>新規投稿</h2>
-        {pageStatus.error && <p style={{ color: 'red' }}>{pageStatus.error}</p>}
-        <form onSubmit={handlePostSubmit}>
-          <input type="text" value={authorName} onChange={(e) => setAuthorName(e.target.value)} placeholder="名前 (任意)" />
-          <textarea value={content} onChange={(e) => setContent(e.target.value)} required placeholder="コメント" />
+      <div style={{ borderTop: '1px solid #eee', paddingTop: '20px', marginTop: '20px' }}>
+        <h2 style={{ color: '#555' }}>新規投稿</h2>
+        {thread.post_count >= MAX_POSTS && (
+          <p style={{ color: 'orange', fontWeight: 'bold', textAlign: 'center' }}>このスレッドは上限に達しました。</p>
+        )}
+        {pageStatus.error && <p style={{ color: 'red', textAlign: 'center' }}>{pageStatus.error}</p>}
+        
+        <form onSubmit={handlePostSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <div>
+            <label htmlFor="authorName" style={{ display: 'block', marginBottom: '5px' }}>名前 (任意):</label>
+            <input
+              type="text"
+              id="authorName"
+              value={authorName}
+              onChange={(e) => setAuthorName(e.target.value)}
+              disabled={submittingPost || thread.post_count >= MAX_POSTS}
+              style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }}
+            />
+          </div>
+          <div>
+            <label htmlFor="content" style={{ display: 'block', marginBottom: '5px' }}>コメント:</label>
+            <textarea
+              id="content"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={5}
+              required
+              disabled={submittingPost || thread.post_count >= MAX_POSTS}
+              style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }}
+            />
+          </div>
           
-          {/* ★ ドロップダウンにドット文字を追加 */}
-          <select value={selectedFont} onChange={(e) => setSelectedFont(e.target.value)}>
-            <option value="var(--font-noto-sans-jp)">ゴシック体 (標準)</option>
-            <option value="var(--font-yuji-syuku)">手書き風 (Yuji Syuku)</option>
-            <option value="var(--font-zen-kaku)">やさしいゴシック (Zen Kaku)</option>
-            <option value="var(--font-dot-gothic)">ドット文字 (DotGothic16)</option>
-            <option value="serif">明朝体</option>
-            <option value="monospace">等幅フォント</option>
-          </select>
+          <div>
+            <label htmlFor="font-select" style={{ display: 'block', marginBottom: '5px' }}>フォント:</label>
+            <select
+              id="font-select"
+              value={selectedFont}
+              onChange={(e) => setSelectedFont(e.target.value)}
+              disabled={submittingPost || thread.post_count >= MAX_POSTS}
+              style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+            >
+              <option value="var(--font-noto-sans-jp)">ゴシック体 (標準)</option>
+              <option value="var(--font-yuji-syuku)">手書き風 (Yuji Syuku)</option>
+              <option value="var(--font-zen-kaku)">やさしいゴシック (Zen Kaku)</option>
+              <option value="var(--font-dot-gothic)">ドット文字 (DotGothic16)</option>
+              <option value="serif">明朝体</option>
+              <option value="monospace">等幅フォント</option>
+            </select>
+          </div>
           
-          <button type="submit" disabled={submittingPost || thread.post_count >= MAX_POSTS}>
+          <button
+            type="submit"
+            disabled={submittingPost || thread.post_count >= MAX_POSTS}
+            style={{ padding: '12px 20px', fontSize: '1.1em', backgroundColor: submittingPost ? '#ccc' : '#007bff', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
+          >
             {submittingPost ? '投稿中...' : '投稿する'}
           </button>
         </form>
       </div>
 
-      <button onClick={() => router.push('/')}>トップページに戻る</button>
+      <div style={{ textAlign: 'center', marginTop: '20px' }}>
+        <button
+          onClick={() => router.push('/')}
+          style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', textDecoration: 'underline' }}
+        >
+          トップページに戻る
+        </button>
+      </div>
     </div>
   );
 };
