@@ -1,7 +1,8 @@
 // app/thread/[id]/page.tsx
 'use client';
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+// ★ 'useCallback'を削除
+import React, { useEffect, useState, useRef } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 
