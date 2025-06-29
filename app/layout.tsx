@@ -1,29 +1,36 @@
 // app/layout.tsx
 
 import type { Metadata } from "next";
-// ★ Google Fontsから読み込みたいフォントをインポート
-import { Noto_Sans_JP, Yuji_Syuku, Zen_Kaku_Gothic_New } from "next/font/google";
+// ★ DotGothic16 をインポート
+import { Noto_Sans_JP, Yuji_Syuku, Zen_Kaku_Gothic_New, DotGothic16 } from "next/font/google";
 import "./globals.css";
 
-// ★ 各フォントの設定
 const notoSansJp = Noto_Sans_JP({
   subsets: ["latin"],
-  variable: "--font-noto-sans-jp", // CSS変数として定義
-  weight: ["400", "700"], // 必要な太さを指定
+  variable: "--font-noto-sans-jp",
+  weight: ["400", "700"],
   display: 'swap',
 });
 
 const yujiSyuku = Yuji_Syuku({
   subsets: ["latin"],
-  variable: "--font-yuji-syuku", // 手書き風フォント
+  variable: "--font-yuji-syuku",
   weight: "400",
   display: 'swap',
 });
 
 const zenKakuGothicNew = Zen_Kaku_Gothic_New({
   subsets: ["latin"],
-  variable: "--font-zen-kaku-gothic-new", // おしゃれなゴシック体
+  variable: "--font-zen-kaku-gothic-new",
   weight: ["400", "700"],
+  display: 'swap',
+});
+
+// ★ DotGothic16 の設定を追加
+const dotGothic = DotGothic16({
+  subsets: ["latin"],
+  variable: "--font-dot-gothic",
+  weight: "400",
   display: 'swap',
 });
 
@@ -41,7 +48,7 @@ export default function RootLayout({
     // ★ bodyのclassNameに新しいフォント変数を追加
     <html lang="ja">
       <body
-        className={`${notoSansJp.variable} ${yujiSyuku.variable} ${zenKakuGothicNew.variable} antialiased`}
+        className={`${notoSansJp.variable} ${yujiSyuku.variable} ${zenKakuGothicNew.variable} ${dotGothic.variable} antialiased`}
       >
         {children}
       </body>
