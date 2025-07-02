@@ -218,7 +218,8 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
         <h2 style={{ color: 'var(--text-secondary)' }}>投稿一覧</h2>
         <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '10px', borderRadius: '4px', backgroundColor: 'rgb(var(--card-bg-rgb))' }}>
           {posts.length === 0 ? <p style={{ textAlign: 'center', color: 'var(--text-tertiary)' }}>まだ投稿がありません。</p> : (
-            posts.map((post, index) => (
+            // ★ (post, index) の 'index' を削除
+            posts.map((post) => (
               <div key={post.id} style={{ marginBottom: '10px', paddingBottom: '10px', borderBottom: `1px dashed var(--border-color)` }}>
                 <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginBottom: '5px' }}>
                   <strong style={{ color: 'var(--text-primary)' }}>{post.author_name || '匿名'}</strong>{' '}

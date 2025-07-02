@@ -1,7 +1,10 @@
-// app/components/ThemeSwitcher.tsx
+// components/ThemeSwitcher.tsx
 'use client';
 
 import { useTheme } from '@/contexts/ThemeContext';
+
+// Themeの型定義をここにも追加
+type Theme = 'stabo-classic' | 'modern-chic' | 'y2k-web' | 'harajuku-pop';
 
 const themes = [
   { id: 'stabo-classic', name: 'クラシック' },
@@ -19,7 +22,8 @@ export const ThemeSwitcher = () => {
       <select
         id="theme-select"
         value={theme}
-        onChange={(e) => setTheme(e.target.value as any)}
+        // ★ 'any' を 'Theme' に修正
+        onChange={(e) => setTheme(e.target.value as Theme)}
         style={{ border: '1px solid #ccc', borderRadius: '4px', fontSize: '12px' }}
       >
         {themes.map((t) => (
