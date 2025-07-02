@@ -43,6 +43,7 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
     return null;
   }
 
+  // ★ リンクのクリック処理を修正
   const handleThreadClick = (e: React.MouseEvent, thread: DistantThreadInfo) => {
     e.preventDefault();
     if (thread.is_global) {
@@ -57,21 +58,24 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
       <h2 style={{ textAlign: 'center', color: '#555' }}>近くの他のスレッド</h2>
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {threads.map((thread) => (
-          <li 
-            key={thread.id} 
-            style={{ marginBottom: '15px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', cursor: 'pointer', transition: 'background-color 0.2s' }} 
+          <li
+            key={thread.id}
+            style={{ marginBottom: '15px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', cursor: 'pointer', transition: 'background-color 0.2s' }}
             onClick={(e) => handleThreadClick(e, thread)}
             onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
             onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
-            <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0, color: thread.is_global ? '#007bff' : '#333' }}>
-              {thread.is_global && '★ '}
-              {thread.title}
-            </p>
-            <p style={{ fontSize: '0.8em', color: '#777', margin: '5px 0 0' }}>
-              投稿数: {thread.post_count}
-              {!thread.is_global && ` | 距離: ${thread.distance.toFixed(2)} km`}
-            </p>
+            {/* ★ リンクとしてではなく、単純なdivとしてコンテンツをラップ */}
+            <div>
+              <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0, color: thread.is_global ? '#007bff' : '#333' }}>
+                {thread.is_global && '★ '}
+                {thread.title}
+              </p>
+              <p style={{ fontSize: '0.8em', color: '#777', margin: '5px 0 0' }}>
+                投稿数: {thread.post_count}
+                {!thread.is_global && ` | 距離: ${thread.distance.toFixed(2)} km`}
+              </p>
+            </div>
           </li>
         ))}
       </ul>
@@ -92,6 +96,7 @@ const HomePage = () => {
   const handleLocationProcessed = async (lat: number, lon: number) => {
     setCurrentStatus('スレッドを検索中...');
     try {
+      // @supabase/auth-helpers-nextjs の createClientComponentClient を使用
       const { data: mainData, error: mainError } = await supabase.functions.invoke<EdgeFunctionResponse>('handle-location', {
         body: { latitude: lat, longitude: lon },
       });
@@ -107,7 +112,7 @@ const HomePage = () => {
         setActionMessage(mainData.message || 'この位置にスレッドが見つかりませんでした。');
         setFoundThread(null);
       }
-      
+
       const { data: distantData, error: distantError } = await supabase.functions.invoke<DistantThreadInfo[]>('get-distant-threads', {
         body: { latitude: lat, longitude: lon },
       });
@@ -142,11 +147,11 @@ const HomePage = () => {
   }, []);
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '600px', margin: 'auto', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', backgroundColor: '#fff' }}>
+    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '600px', margin: 'auto', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', backgroundColor: '#fff', color: '#333' }}>
       <h1 style={{ textAlign: 'center', color: '#333' }}>stabo.dev</h1>
       
       {isLoading ? (
-        <p style={{ textAlign: 'center', fontSize: '1.2em' }}>{currentStatus}</p>
+        <p style={{ textAlign: 'center', fontSize: '1.2em', color: '#555' }}>{currentStatus}</p>
       ) : (
         <div>
           {location.error ? (
@@ -156,14 +161,14 @@ const HomePage = () => {
               <p style={{ textAlign: 'center', fontSize: '0.9em', color: '#777' }}>
                 緯度: {location.latitude?.toFixed(5)}, 経度: {location.longitude?.toFixed(5)}
               </p>
-              {actionMessage && <p style={{ textAlign: 'center', fontSize: '1.1em' }}>{actionMessage}</p>}
+              {actionMessage && <p style={{ textAlign: 'center', fontSize: '1.1em', color: '#444' }}>{actionMessage}</p>}
 
               {foundThread ? (
                 <div style={{ borderTop: '1px solid #eee', paddingTop: '20px', textAlign: 'center' }}>
-                  <p style={{ fontSize: '1.2em', fontWeight: 'bold' }}>{`"${foundThread.title}"`}</p>
+                  <p style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#333' }}>{`"${foundThread.title}"`}</p>
                   <button
                     onClick={() => router.push(`/thread/${foundThread.id}`)}
-                    style={{ padding: '10px 20px', fontSize: '1em', cursor: 'pointer', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '5px' }}
+                    style={{ padding: '10px 20px', fontSize: '1em', cursor: 'pointer', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '5px', marginTop: '10px' }}
                   >
                     スレッドを見る
                   </button>
