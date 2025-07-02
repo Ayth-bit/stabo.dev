@@ -16,7 +16,6 @@ type GeolocationResult = {
   error: string | null;
 };
 
-// ★ ThreadInfo と DistantThreadInfo の型に is_global を追加
 type ThreadInfo = {
   id: string;
   title: string;
@@ -37,9 +36,8 @@ type EdgeFunctionResponse = {
   error?: string;
 };
 
-// ★★★ DistantThreadsList コンポーネントを大幅に修正 ★★★
 const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
-  const router = useRouter(); // ナビゲーション用のルーター
+  const router = useRouter();
 
   if (threads.length === 0) {
     return null;
@@ -48,10 +46,8 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
   const handleThreadClick = (e: React.MouseEvent, thread: DistantThreadInfo) => {
     e.preventDefault();
     if (thread.is_global) {
-      // グローバルスレッドならスレッドページに遷移
       router.push(`/thread/${thread.id}`);
     } else {
-      // 通常スレッドならGoogleマップを新しいタブで開く
       window.open(`https://maps.google.com/?q=${thread.latitude},${thread.longitude}`, '_blank');
     }
   };
@@ -61,17 +57,21 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
       <h2 style={{ textAlign: 'center', color: '#555' }}>近くの他のスレッド</h2>
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {threads.map((thread) => (
-          <li key={thread.id} style={{ marginBottom: '15px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', cursor: 'pointer' }} onClick={(e) => handleThreadClick(e, thread)}>
-              <div style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-                <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0 }}>
-                  {thread.is_global && '★ '}
-                  {thread.title}
-                </p>
-                <p style={{ fontSize: '0.8em', color: '#777', margin: '5px 0 0' }}>
-                  投稿数: {thread.post_count}
-                  {!thread.is_global && ` | 距離: ${thread.distance.toFixed(2)} km`}
-                </p>
-              </div>
+          <li 
+            key={thread.id} 
+            style={{ marginBottom: '15px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', cursor: 'pointer', transition: 'background-color 0.2s' }} 
+            onClick={(e) => handleThreadClick(e, thread)}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0, color: thread.is_global ? '#007bff' : '#333' }}>
+              {thread.is_global && '★ '}
+              {thread.title}
+            </p>
+            <p style={{ fontSize: '0.8em', color: '#777', margin: '5px 0 0' }}>
+              投稿数: {thread.post_count}
+              {!thread.is_global && ` | 距離: ${thread.distance.toFixed(2)} km`}
+            </p>
           </li>
         ))}
       </ul>
@@ -97,9 +97,7 @@ const HomePage = () => {
       });
 
       if (mainError) throw mainError;
-      if (!mainData) {
-        throw new Error('Function did not return data.');
-      }
+      if (!mainData) throw new Error('Function did not return data.');
       if (mainData.error) throw new Error(mainData.error);
 
       if (mainData.type === 'found_thread' && mainData.thread) {
@@ -122,9 +120,7 @@ const HomePage = () => {
 
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('Function invocation error:', errorMessage);
       setActionMessage(`エラー: ${errorMessage}`);
-      setCurrentStatus('エラー');
     } finally {
       setIsLoading(false);
       setCurrentStatus('完了');
@@ -132,66 +128,54 @@ const HomePage = () => {
   };
 
   useEffect(() => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setLocation({ latitude, longitude, error: null });
-          handleLocationProcessed(latitude, longitude);
-        },
-        (error) => {
-          let errorMessage = '位置情報の取得に失敗しました。';
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              errorMessage = '位置情報へのアクセスが拒否されました。設定を確認してください。';
-              break;
-            case error.POSITION_UNAVAILABLE:
-              errorMessage = '位置情報が利用できません。';
-              break;
-            case error.TIMEOUT:
-              errorMessage = '位置情報の取得がタイムアウトしました。';
-              break;
-          }
-          setLocation({ latitude: null, longitude: null, error: errorMessage });
-          setIsLoading(false);
-          setCurrentStatus('エラー');
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    } else {
-      setLocation({ latitude: null, longitude: null, error: 'お使いのブラウザは位置情報に対応していません。' });
-      setIsLoading(false);
-      setCurrentStatus('エラー');
-    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setLocation({ latitude, longitude, error: null });
+        handleLocationProcessed(latitude, longitude);
+      },
+      () => {
+        setLocation({ latitude: null, longitude: null, error: '位置情報へのアクセスが拒否されました。設定を確認してください。' });
+        setIsLoading(false);
+      }
+    );
   }, []);
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '600px', margin: 'auto' }}>
-      <h1 style={{ textAlign: 'center' }}>stabo.dev</h1>
+    <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '600px', margin: 'auto', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', backgroundColor: '#fff' }}>
+      <h1 style={{ textAlign: 'center', color: '#333' }}>stabo.dev</h1>
       
       {isLoading ? (
-        <p style={{ textAlign: 'center' }}>{currentStatus}</p>
+        <p style={{ textAlign: 'center', fontSize: '1.2em' }}>{currentStatus}</p>
       ) : (
         <div>
           {location.error ? (
-            <p style={{ color: 'red', textAlign: 'center' }}>エラー: {location.error}</p>
+            <p style={{ color: 'red', textAlign: 'center' }}>{location.error}</p>
           ) : (
             <>
-              <p style={{ textAlign: 'center', fontSize: '0.8em', color: '#666' }}>
+              <p style={{ textAlign: 'center', fontSize: '0.9em', color: '#777' }}>
                 緯度: {location.latitude?.toFixed(5)}, 経度: {location.longitude?.toFixed(5)}
               </p>
-              {actionMessage && <p style={{ textAlign: 'center' }}>{actionMessage}</p>}
+              {actionMessage && <p style={{ textAlign: 'center', fontSize: '1.1em' }}>{actionMessage}</p>}
 
               {foundThread ? (
-                <div style={{ textAlign: 'center', marginTop: '20px' }}>
-                  <h2>見つかったスレッド:</h2>
-                  <p><strong>{`"${foundThread.title}"`}</strong></p>
-                  <button onClick={() => router.push(`/thread/${foundThread.id}`)}>スレッドを見る</button>
+                <div style={{ borderTop: '1px solid #eee', paddingTop: '20px', textAlign: 'center' }}>
+                  <p style={{ fontSize: '1.2em', fontWeight: 'bold' }}>{`"${foundThread.title}"`}</p>
+                  <button
+                    onClick={() => router.push(`/thread/${foundThread.id}`)}
+                    style={{ padding: '10px 20px', fontSize: '1em', cursor: 'pointer', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '5px' }}
+                  >
+                    スレッドを見る
+                  </button>
                 </div>
               ) : (
-                <div style={{ textAlign: 'center', marginTop: '20px' }}>
-                  <p>この位置にスレッドがありません。</p>
-                  <button onClick={() => router.push(`/create-thread?lat=${location.latitude}&lon=${location.longitude}`)}>新規スレッドを作成する</button>
+                <div style={{ borderTop: '1px solid #eee', paddingTop: '20px', textAlign: 'center' }}>
+                  <button
+                    onClick={() => router.push(`/create-thread?lat=${location.latitude}&lon=${location.longitude}`)}
+                    style={{ padding: '10px 20px', fontSize: '1em', cursor: 'pointer', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '5px' }}
+                  >
+                    新規スレッドを作成する
+                  </button>
                 </div>
               )}
               <DistantThreadsList threads={distantThreads} />
