@@ -10,7 +10,6 @@ const supabase = createClientComponentClient({
   supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 });
 
-// ★★★ 削除されていた型定義を復活 ★★★
 type GeolocationResult = {
   latitude: number | null;
   longitude: number | null;
@@ -43,16 +42,7 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
   if (threads.length === 0) {
     return null;
   }
-
-  const handleThreadClick = (e: React.MouseEvent, thread: DistantThreadInfo) => {
-    e.preventDefault();
-    if (thread.is_global) {
-      router.push(`/thread/${thread.id}`);
-    } else {
-      window.open(`https://maps.google.com/?q=${thread.latitude},${thread.longitude}`, '_blank');
-    }
-  };
-
+  
   return (
     <div style={{ marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
       <h2 style={{ textAlign: 'center', color: '#555' }}>近くの他のスレッド</h2>
@@ -61,20 +51,25 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
           <li
             key={thread.id}
             style={{ marginBottom: '15px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', cursor: 'pointer', transition: 'background-color 0.2s' }}
-            onClick={(e) => handleThreadClick(e, thread)}
+            onClick={(e) => {
+              e.preventDefault();
+              if (thread.is_global) {
+                router.push(`/thread/${thread.id}`);
+              } else {
+                window.open(`https://maps.google.com/?q=${thread.latitude},${thread.longitude}`, '_blank');
+              }
+            }}
             onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
             onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
-            <div>
-              <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0, color: thread.is_global ? '#007bff' : '#333' }}>
-                {thread.is_global && '★ '}
-                {thread.title}
-              </p>
-              <p style={{ fontSize: '0.8em', color: '#6c757d', margin: '5px 0 0' }}>
-                投稿数: {thread.post_count}
-                {!thread.is_global && ` | 距離: ${thread.distance.toFixed(2)} km`}
-              </p>
-            </div>
+            <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0, color: thread.is_global ? '#007bff' : '#333' }}>
+              {thread.is_global && '★ '}
+              {thread.title}
+            </p>
+            <p style={{ fontSize: '0.8em', color: '#6c757d', margin: '5px 0 0' }}>
+              投稿数: {thread.post_count}
+              {!thread.is_global && ` | 距離: ${thread.distance.toFixed(2)} km`}
+            </p>
           </li>
         ))}
       </ul>
