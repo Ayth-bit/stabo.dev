@@ -10,7 +10,6 @@ const supabase = createClientComponentClient({
   supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 });
 
-// ★ Thread型に is_global を追加
 type Thread = {
   id: string;
   title: string;
@@ -18,7 +17,7 @@ type Thread = {
   longitude: number;
   created_at: string;
   post_count: number;
-  is_global: boolean; // この行を追加
+  is_global: boolean;
 };
 
 type Post = {
@@ -75,7 +74,6 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
 
     const checkAccessAndFetchData = async () => {
       try {
-        // ★ is_globalも取得するように修正
         const { data: threadData, error: threadError } = await supabase
           .from('threads')
           .select('*, is_global')
@@ -87,16 +85,14 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
         }
         setThread(threadData);
         
-        // ★ グローバルスレッドなら、距離チェックをスキップ
         if (threadData.is_global) {
             const { data: postsData, error: postsError } = await supabase.from('posts').select('*').eq('thread_id', threadId).order('created_at', { ascending: true });
             if (postsError) throw postsError;
             setPosts(postsData);
             setPageStatus({ loading: false, error: null, isAccessAllowed: true });
-            return; // チェック処理を終了
+            return;
         }
 
-        // --- 通常スレッドの場合の距離チェック ---
         if (!navigator.geolocation) {
           throw new Error('お使いのブラウザは位置情報に対応していません。');
         }
@@ -149,8 +145,8 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
     setPageStatus(prev => ({ ...prev, error: null }));
 
     if (!content.trim() || !thread) {
-      setSubmittingPost(false);
-      return;
+        setSubmittingPost(false);
+        return;
     }
     
     const postData = async () => {
@@ -170,13 +166,11 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
         }
     };
     
-    // ★ グローバルスレッドなら、距離チェックをスキップして投稿
     if (thread.is_global) {
         await postData();
         return;
     }
 
-    // --- 通常スレッドの場合の投稿前距離チェック ---
     if (!navigator.geolocation) {
       setPageStatus(prev => ({...prev, error: '位置情報が利用できません。'}));
       setSubmittingPost(false);
@@ -214,23 +208,23 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
   }
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'var(--font-noto-sans-jp)', maxWidth: '800px', margin: 'auto', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', backgroundColor: '#fff', color: '#333' }}>
-      <h1 style={{ textAlign: 'center', color: '#333', fontFamily: 'var(--font-zen-kaku)' }}>{thread.title}</h1>
-      <p style={{ textAlign: 'center', fontSize: '0.9em', color: '#777', marginBottom: '20px' }}>
+    <div style={{ padding: '20px', maxWidth: '800px', margin: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+      <h1 style={{ textAlign: 'center', color: 'var(--text-primary)' }}>{thread.title}</h1>
+      <p style={{ textAlign: 'center', fontSize: '0.9em', color: 'var(--text-tertiary)', marginBottom: '20px' }}>
         作成日時: {new Date(thread.created_at).toLocaleString()} | 投稿数: {thread.post_count} / {MAX_POSTS}
       </p>
 
-      <div style={{ borderTop: '1px solid #eee', paddingTop: '20px' }}>
-        <h2 style={{ color: '#555' }}>投稿一覧</h2>
-        <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px', borderRadius: '4px', backgroundColor: '#f9f9f9', color: '#333' }}>
-          {posts.length === 0 ? <p style={{ textAlign: 'center', color: '#999' }}>まだ投稿がありません。</p> : (
-            posts.map((post) => (
-              <div key={post.id} style={{ marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px dashed #eee' }}>
-                <p style={{ fontSize: '0.9em', color: '#555', marginBottom: '5px' }}>
-                  <strong style={{ color: '#333' }}>{post.author_name || '匿名'}</strong>{' '}
-                  <span style={{ fontSize: '0.8em', color: '#999' }}>({new Date(post.created_at).toLocaleString()})</span>
+      <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
+        <h2 style={{ color: 'var(--text-secondary)' }}>投稿一覧</h2>
+        <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '10px', borderRadius: '4px', backgroundColor: 'rgb(var(--card-bg-rgb))' }}>
+          {posts.length === 0 ? <p style={{ textAlign: 'center', color: 'var(--text-tertiary)' }}>まだ投稿がありません。</p> : (
+            posts.map((post, index) => (
+              <div key={post.id} style={{ marginBottom: '10px', paddingBottom: '10px', borderBottom: `1px dashed var(--border-color)` }}>
+                <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                  <strong style={{ color: 'var(--text-primary)' }}>{post.author_name || '匿名'}</strong>{' '}
+                  <span style={{ fontSize: '0.8em', color: 'var(--text-tertiary)' }}>({new Date(post.created_at).toLocaleString()})</span>
                 </p>
-                <p style={{ fontFamily: post.font_family || 'var(--font-noto-sans-jp)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#333' }}>
+                <p style={{ fontFamily: post.font_family || 'var(--font-noto-sans-jp)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--text-primary)' }}>
                   {post.content}
                 </p>
               </div>
@@ -240,24 +234,24 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
         </div>
       </div>
 
-      <div style={{ borderTop: '1px solid #eee', paddingTop: '20px', marginTop: '20px' }}>
-        <h2 style={{ color: '#555' }}>新規投稿</h2>
+      <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '20px', marginTop: '20px' }}>
+        <h2 style={{ color: 'var(--text-secondary)' }}>新規投稿</h2>
         {thread.post_count >= MAX_POSTS && <p style={{ color: 'orange', fontWeight: 'bold', textAlign: 'center' }}>このスレッドは上限に達しました。</p>}
         {pageStatus.error && <p style={{ color: 'red', textAlign: 'center' }}>{pageStatus.error}</p>}
         
         <form onSubmit={handlePostSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <div>
             <label htmlFor="authorName" style={{ display: 'block', marginBottom: '5px' }}>名前 (任意):</label>
-            <input type="text" id="authorName" value={authorName} onChange={(e) => setAuthorName(e.target.value)} disabled={submittingPost || thread.post_count >= MAX_POSTS} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} />
+            <input type="text" id="authorName" value={authorName} onChange={(e) => setAuthorName(e.target.value)} disabled={submittingPost || thread.post_count >= MAX_POSTS} style={{ width: '100%', padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px', boxSizing: 'border-box', background: 'rgb(var(--card-bg-rgb))', color: 'var(--text-primary)' }}/>
           </div>
           <div>
             <label htmlFor="content" style={{ display: 'block', marginBottom: '5px' }}>コメント:</label>
-            <textarea id="content" value={content} onChange={(e) => setContent(e.target.value)} rows={5} required disabled={submittingPost || thread.post_count >= MAX_POSTS} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', boxSizing: 'border-box' }} />
+            <textarea id="content" value={content} onChange={(e) => setContent(e.target.value)} rows={5} required disabled={submittingPost || thread.post_count >= MAX_POSTS} style={{ width: '100%', padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px', boxSizing: 'border-box', fontFamily: selectedFont, background: 'rgb(var(--card-bg-rgb))', color: 'var(--text-primary)' }}/>
           </div>
           
           <div>
             <label htmlFor="font-select" style={{ display: 'block', marginBottom: '5px' }}>フォント:</label>
-            <select id="font-select" value={selectedFont} onChange={(e) => setSelectedFont(e.target.value)} disabled={submittingPost || thread.post_count >= MAX_POSTS} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}>
+            <select id="font-select" value={selectedFont} onChange={(e) => setSelectedFont(e.target.value)} disabled={submittingPost || thread.post_count >= MAX_POSTS} style={{ width: '100%', padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px', background: 'rgb(var(--card-bg-rgb))', color: 'var(--text-primary)' }}>
               <option value="var(--font-noto-sans-jp)">ゴシック体 (標準)</option>
               <option value="var(--font-yuji-syuku)">手書き風 (Yuji Syuku)</option>
               <option value="var(--font-zen-kaku)">やさしいゴシック (Zen Kaku)</option>
@@ -267,14 +261,14 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
             </select>
           </div>
           
-          <button type="submit" disabled={submittingPost || thread.post_count >= MAX_POSTS} style={{ padding: '12px 20px', fontSize: '1.1em', backgroundColor: submittingPost ? '#ccc' : '#007bff', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
+          <button type="submit" disabled={submittingPost || thread.post_count >= MAX_POSTS} style={{ padding: '12px 20px', fontSize: '1.1em', backgroundColor: `rgb(var(--primary-rgb))`, color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', opacity: submittingPost ? 0.5 : 1 }}>
             {submittingPost ? '投稿中...' : '投稿する'}
           </button>
         </form>
       </div>
 
       <div style={{ textAlign: 'center', marginTop: '20px' }}>
-        <button onClick={() => router.push('/')} style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', textDecoration: 'underline' }}>トップページに戻る</button>
+        <button onClick={() => router.push('/')} style={{ background: 'none', border: 'none', color: `rgb(var(--primary-rgb))`, cursor: 'pointer', textDecoration: 'underline' }}>トップページに戻る</button>
       </div>
     </div>
   );

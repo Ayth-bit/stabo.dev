@@ -1,29 +1,108 @@
-@import "tailwindcss";
+/* app/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+/* --------------------------------
+ * 基本となる変数定義（フォールバック用）
+ * -------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  /* ★ 読み込んだGoogle FontsをCSS変数として再定義 */
-  --font-yuji-syuku: '__Yuji_Syuku_271a73', '__Yuji_Syuku_Fallback_271a73';
-  --font-zen-kaku: '__Zen_Kaku_Gothic_New_a81977', '__Zen_Kaku_Gothic_New_Fallback_a81977';
+  --font-noto-sans-jp: 'Noto Sans JP', sans-serif;
+  --font-yuji-syuku: 'Yuji Syuku', cursive;
+  --font-zen-kaku: 'Zen Kaku Gothic New', sans-serif;
+  --font-dot-gothic: 'DotGothic16', sans-serif;
+
+  --foreground-rgb: 0, 0, 0;
+  --background-rgb: 255, 255, 255;
+  --primary-rgb: 0, 123, 255;
+  --accent-rgb: 40, 167, 69;
+  
+  --card-bg-rgb: 249, 249, 249;
+  --border-color: #eee;
+  --text-primary: #333;
+  --text-secondary: #555;
+  --text-tertiary: #777;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* --------------------------------
+ * Stabo Classic テーマ (デフォルト)
+ * -------------------------------- */
+[data-theme='stabo-classic'] {
+  --foreground-rgb: 0, 0, 0;
+  --background-rgb: 255, 255, 255;
+  --primary-rgb: 0, 123, 255;
+  --accent-rgb: 40, 167, 69;
+  --card-bg-rgb: 249, 249, 249;
+  --border-color: #eee;
+  --text-primary: #333;
+  --text-secondary: #555;
+  --text-tertiary: #777;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* --------------------------------
+ * Modern Chic テーマ
+ * -------------------------------- */
+[data-theme='modern-chic'] {
+  --foreground-rgb: 230, 230, 230;
+  --background-rgb: 24, 24, 27; /* ダークグレー */
+  --primary-rgb: 59, 130, 246; /* 明るい青 */
+  --accent-rgb: 22, 163, 74; /* 明るい緑 */
+  --card-bg-rgb: 39, 39, 42; /* さらに暗いグレー */
+  --border-color: #3f3f46;
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #71717a;
 }
 
+/* --------------------------------
+ * Y2K Web テーマ
+ * -------------------------------- */
+[data-theme='y2k-web'] {
+  --foreground-rgb: 0, 0, 255; /* 青文字 */
+  --background-rgb: 200, 200, 200; /* シルバー */
+  --primary-rgb: 0, 0, 255;
+  --accent-rgb: 255, 0, 0; /* 赤 */
+  --card-bg-rgb: 240, 240, 240;
+  --border-color: #888;
+  --text-primary: #0000ff;
+  --text-secondary: #0000aa;
+  --text-tertiary: #ff0000;
+  font-family: 'MS PGothic', 'Comic Sans MS', sans-serif !important;
+}
+[data-theme='y2k-web'] h1, [data-theme='y2k-web'] h2 {
+  font-family: 'Impact', 'Arial Black', sans-serif !important;
+  text-shadow: 2px 2px #ff00ff;
+  -webkit-text-stroke: 1px black;
+}
+[data-theme='y2k-web'] button {
+  border-style: outset !important;
+}
+
+/* --------------------------------
+ * Harajuku Pop テーマ
+ * -------------------------------- */
+[data-theme='harajuku-pop'] {
+  --foreground-rgb: 50, 50, 50;
+  --background-rgb: 255, 235, 245; /* パステルピンク */
+  --primary-rgb: 255, 105, 180; /* ホットピンク */
+  --accent-rgb: 0, 206, 209; /* ターコイズ */
+  --card-bg-rgb: 255, 255, 255;
+  --border-color: #ffc0cb; /* ピンク */
+  --text-primary: #333;
+  --text-secondary: #ff1493;
+  --text-tertiary: #1e90ff;
+  font-family: 'M PLUS Rounded 1c', sans-serif !important;
+}
+[data-theme='harajuku-pop'] h1 {
+  color: var(--primary-rgb);
+  text-shadow: 2px 2px #fff, 4px 4px #00ced1;
+}
+
+/* --------------------------------
+ * 全体に適応されるスタイル
+ * -------------------------------- */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+  transition: background-color 0.3s, color 0.3s;
 }

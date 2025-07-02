@@ -1,9 +1,11 @@
 // app/layout.tsx
-
 import type { Metadata } from "next";
-// ★ DotGothic16 をインポート
-import { Noto_Sans_JP, Yuji_Syuku, Zen_Kaku_Gothic_New, DotGothic16 } from "next/font/google";
+import { Noto_Sans_JP, Yuji_Syuku, Zen_Kaku_Gothic_New, DotGothic16, M_PLUS_Rounded_1c } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "@/contexts/ThemeContext";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+
+
 
 const notoSansJp = Noto_Sans_JP({
   subsets: ["latin"],
@@ -34,6 +36,14 @@ const dotGothic = DotGothic16({
   display: 'swap',
 });
 
+const mplusRounded = M_PLUS_Rounded_1c({ 
+  subsets: ['latin'],
+  variable: '--font-m-plus-rounded', 
+  weight: ['400', '700'], 
+  display: 'swap' ,
+});
+
+
 export const metadata: Metadata = {
   title: 'Stabo',
   description: 'stabo.dev - your unique app experience "Stabo.world", change the world here.',
@@ -45,12 +55,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // ★ bodyのclassNameに新しいフォント変数を追加
     <html lang="ja">
-      <body
-        className={`${notoSansJp.variable} ${yujiSyuku.variable} ${zenKakuGothicNew.variable} ${dotGothic.variable} antialiased`}
-      >
-        {children}
+      <body className={`${notoSansJp.variable} ${yujiSyuku.variable} ${zenKakuGothicNew.variable} ${dotGothic.variable} ${mplusRounded.variable}`}>
+        <ThemeProvider>
+          <ThemeSwitcher />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
