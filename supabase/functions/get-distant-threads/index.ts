@@ -30,11 +30,11 @@ serve(async (req) => {
     // 投稿数上限を環境変数から取得（なければ1000）
     const MAX_POST_COUNT = parseInt(Deno.env.get('MAX_POST_COUNT') || '1000', 10);
 
-   const { data: allThreads, error: fetchError } = await supabase
-          .from('threads')
-          // ★★★ この select 文に is_global を追加 ★★★
-          .select('id, title, latitude, longitude, post_count, is_global') 
-          .lt('post_count', MAX_POST_COUNT);
+    const { data: allThreads, error: fetchError } = await supabase
+    .from('threads')
+    // ★★★ この select 文に is_global が含まれていることが非常に重要です ★★★
+    .select('id, title, latitude, longitude, post_count, is_global')
+    .lt('post_count', MAX_POST_COUNT);
 
     if (fetchError) throw fetchError;
     if (!allThreads) {
