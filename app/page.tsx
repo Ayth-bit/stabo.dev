@@ -142,7 +142,7 @@ const HomePage = () => {
 
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '600px', margin: 'auto', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', backgroundColor: '#fff', color: '#333' }}>
-      <h1 style={{ textAlign: 'center', color: '#333' }}>stabo.dev</h1>
+      <h1 style={{ textAlign: 'center', color: '#333' }}>Stabo_α版</h1>
       
       {isLoading ? (
         <p style={{ textAlign: 'center', fontSize: '1.2em', color: '#555' }}>{currentStatus}</p>

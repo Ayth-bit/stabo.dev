@@ -35,7 +35,7 @@ const dotGothic = DotGothic16({
 });
 
 export const metadata: Metadata = {
-  title: 'stabo.dev',
+  title: 'Stabo',
   description: 'stabo.dev - your unique app experience "Stabo.world", change the world here.',
 };
 
