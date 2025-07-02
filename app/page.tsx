@@ -10,14 +10,20 @@ const supabase = createClientComponentClient({
   supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 });
 
-// ★ is_global を含むように型定義を修正
+// ★★★ 削除されていた型定義を復活 ★★★
+type GeolocationResult = {
+  latitude: number | null;
+  longitude: number | null;
+  error: string | null;
+};
+
 type ThreadInfo = {
   id: string;
   title: string;
   latitude: number;
   longitude: number;
   post_count: number;
-  is_global: boolean; 
+  is_global: boolean;
 };
 
 type DistantThreadInfo = ThreadInfo & {
@@ -31,16 +37,21 @@ type EdgeFunctionResponse = {
   error?: string;
 };
 
-// ★★★ DistantThreadsList コンポーネントを完全に修正 ★★★
 const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
   const router = useRouter();
 
   if (threads.length === 0) {
     return null;
   }
-  
-  // デバッグ用: コンソールに受け取ったデータを出力して確認
-  // console.log('DistantThreadsList received:', threads);
+
+  const handleThreadClick = (e: React.MouseEvent, thread: DistantThreadInfo) => {
+    e.preventDefault();
+    if (thread.is_global) {
+      router.push(`/thread/${thread.id}`);
+    } else {
+      window.open(`https://maps.google.com/?q=${thread.latitude},${thread.longitude}`, '_blank');
+    }
+  };
 
   return (
     <div style={{ marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
@@ -50,26 +61,20 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
           <li
             key={thread.id}
             style={{ marginBottom: '15px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', cursor: 'pointer', transition: 'background-color 0.2s' }}
-            // ★ クリック時のロジックを修正
-            onClick={(e) => {
-              e.preventDefault();
-              if (thread.is_global) {
-                router.push(`/thread/${thread.id}`);
-              } else {
-                window.open(`https://maps.google.com/?q=${thread.latitude},${thread.longitude}`, '_blank');
-              }
-            }}
+            onClick={(e) => handleThreadClick(e, thread)}
             onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
             onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
-            <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0, color: thread.is_global ? '#007bff' : '#333' }}>
-              {thread.is_global && '★ '}
-              {thread.title}
-            </p>
-            <p style={{ fontSize: '0.8em', color: '#6c757d', margin: '5px 0 0' }}>
-              投稿数: {thread.post_count}
-              {!thread.is_global && ` | 距離: ${thread.distance.toFixed(2)} km`}
-            </p>
+            <div>
+              <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0, color: thread.is_global ? '#007bff' : '#333' }}>
+                {thread.is_global && '★ '}
+                {thread.title}
+              </p>
+              <p style={{ fontSize: '0.8em', color: '#6c757d', margin: '5px 0 0' }}>
+                投稿数: {thread.post_count}
+                {!thread.is_global && ` | 距離: ${thread.distance.toFixed(2)} km`}
+              </p>
+            </div>
           </li>
         ))}
       </ul>
@@ -103,7 +108,7 @@ const HomePage = () => {
         setActionMessage(`既存のスレッドが見つかりました:`);
         setFoundThread(mainData.thread);
       } else if (mainData.type === 'create_new_thread') {
-        setActionMessage(mainData.message || 'この位置にスレッドがありません。');
+        setActionMessage(mainData.message || 'この位置にスレッドが見つかりませんでした。');
         setFoundThread(null);
       }
       
