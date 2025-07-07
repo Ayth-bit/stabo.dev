@@ -101,8 +101,8 @@
 /* --------------------------------
  * 全体に適応されるスタイル
  * -------------------------------- */
-body {
+ body {
   color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
+  background: rgb(var(--background-rgb)); /* 変更：直接背景色を適用 */
   transition: background-color 0.3s, color 0.3s;
 }

@@ -44,21 +44,21 @@ const UniqueThreadsList = ({ threads }: { threads: ThreadInfo[] }) => {
   }
 
   return (
-    <div style={{ marginTop: '30px', borderTop: '2px solid #ffd700', paddingTop: '20px' }}>
-      <h2 style={{ textAlign: 'center', color: '#e6a800' }}>★ 注目のユニークスレッド</h2>
+    <div style={{ marginTop: '30px', borderTop: '2px solid var(--border-color, #ffd700)', paddingTop: '20px' }}>
+      <h2 style={{ textAlign: 'center', color: 'var(--accent-color, #e6a800)' }}>★ 注目のユニークスレッド</h2>
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {threads.map((thread) => (
           <li
             key={thread.id}
-            style={{ marginBottom: '15px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', cursor: 'pointer', transition: 'background-color 0.2s' }}
+            style={{ marginBottom: '15px', padding: '10px', border: '1px solid var(--border-color, #ddd)', borderRadius: '5px', cursor: 'pointer', transition: 'background-color 0.2s' }}
             onClick={() => router.push(`/thread/${thread.id}`)}
             onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
             onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
-            <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0, color: '#007bff' }}>
+            <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0, color: 'var(--primary-color, #007bff)' }}>
               {thread.title}
             </p>
-            <p style={{ fontSize: '0.8em', color: '#6c757d', margin: '5px 0 0' }}>
+            <p style={{ fontSize: '0.8em', color: 'var(--text-tertiary, #6c757d)', margin: '5px 0 0' }}>
               投稿数: {thread.post_count}
             </p>
           </li>
@@ -70,27 +70,26 @@ const UniqueThreadsList = ({ threads }: { threads: ThreadInfo[] }) => {
 
 
 const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
-  // ★★★ 不要な useRouter を削除 ★★★
   if (threads.length === 0) {
     return null;
   }
 
   return (
-    <div style={{ marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
-      <h2 style={{ textAlign: 'center', color: '#555' }}>近くの他のスレッド</h2>
+    <div style={{ marginTop: '30px', borderTop: '1px solid var(--border-color, #eee)', paddingTop: '20px' }}>
+      <h2 style={{ textAlign: 'center', color: 'var(--text-secondary, #555)' }}>近くの他のスレッド</h2>
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {threads.map((thread) => (
           <li
             key={thread.id}
-            style={{ marginBottom: '15px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', cursor: 'pointer', transition: 'background-color 0.2s' }}
+            style={{ marginBottom: '15px', padding: '10px', border: '1px solid var(--border-color, #ddd)', borderRadius: '5px', cursor: 'pointer', transition: 'background-color 0.2s' }}
             onClick={() => window.open(`https://maps.google.com/?q=${thread.latitude},${thread.longitude}`, '_blank')}
             onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
             onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
-            <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0, color: '#333' }}>
+            <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0, color: 'var(--text-primary, #333)' }}>
               {thread.title}
             </p>
-            <p style={{ fontSize: '0.8em', color: '#6c757d', margin: '5px 0 0' }}>
+            <p style={{ fontSize: '0.8em', color: 'var(--text-tertiary, #6c757d)', margin: '5px 0 0' }}>
               投稿数: {thread.post_count} | 距離: {thread.distance.toFixed(2)} km
             </p>
           </li>
@@ -160,45 +159,45 @@ const HomePage = () => {
       },
       () => {
         setLocation({ latitude: null, longitude: null, error: '位置情報へのアクセスが拒否されました。設定を確認してください。' });
-        // 位置情報がなくてもユニークスレッドは取得する
         handleLocationProcessed(0, 0);
       }
     );
   }, []);
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '600px', margin: 'auto', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', backgroundColor: '#fff', color: '#333' }}>
-      <h1 style={{ textAlign: 'center', color: '#333' }}>stabo.dev</h1>
+    // ★★★ ルートdivのスタイルを修正 ★★★
+    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '600px', margin: 'auto', border: '1px solid var(--border-color, #eee)', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', backgroundColor: 'rgb(var(--background-rgb))', color: 'var(--text-primary)' }}>
+      <h1 style={{ textAlign: 'center', color: 'var(--text-primary)' }}>stabo.dev</h1>
       
       {isLoading ? (
-        <p style={{ textAlign: 'center', fontSize: '1.2em', color: '#555' }}>{currentStatus}</p>
+        <p style={{ textAlign: 'center', fontSize: '1.2em', color: 'var(--text-secondary)' }}>{currentStatus}</p>
       ) : (
         <div>
           {location.error && <p style={{ color: 'red', textAlign: 'center' }}>{location.error}</p>}
           
           {!location.error && (
             <>
-              <p style={{ textAlign: 'center', fontSize: '0.9em', color: '#777' }}>
+              <p style={{ textAlign: 'center', fontSize: '0.9em', color: 'var(--text-tertiary)' }}>
                 緯度: {location.latitude?.toFixed(5)}, 経度: {location.longitude?.toFixed(5)}
               </p>
               
               {foundThread ? (
-                <div style={{ borderTop: '1px solid #eee', paddingTop: '20px', textAlign: 'center', marginTop: '20px' }}>
-                  <p style={{ margin: '0 0 10px 0', fontSize: '1em', color: '#444' }}>{actionMessage}</p>
-                  <p style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#333' }}>{`"${foundThread.title}"`}</p>
+                <div style={{ borderTop: '1px solid var(--border-color, #eee)', paddingTop: '20px', textAlign: 'center', marginTop: '20px' }}>
+                  <p style={{ margin: '0 0 10px 0', fontSize: '1em', color: 'var(--text-secondary)' }}>{actionMessage}</p>
+                  <p style={{ fontSize: '1.2em', fontWeight: 'bold', color: 'var(--text-primary)' }}>{`"${foundThread.title}"`}</p>
                   <button
                     onClick={() => router.push(`/thread/${foundThread.id}`)}
-                    style={{ padding: '10px 20px', fontSize: '1em', cursor: 'pointer', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '5px', marginTop: '10px' }}
+                    style={{ padding: '10px 20px', fontSize: '1em', cursor: 'pointer', backgroundColor: 'var(--primary-color, #007bff)', color: 'white', border: 'none', borderRadius: '5px', marginTop: '10px' }}
                   >
                     スレッドを見る
                   </button>
                 </div>
               ) : (
-                <div style={{ borderTop: '1px solid #eee', paddingTop: '20px', textAlign: 'center', marginTop: '20px' }}>
-                   <p style={{ margin: '0 0 10px 0', fontSize: '1.1em', color: '#444' }}>{actionMessage}</p>
+                <div style={{ borderTop: '1px solid var(--border-color, #eee)', paddingTop: '20px', textAlign: 'center', marginTop: '20px' }}>
+                   <p style={{ margin: '0 0 10px 0', fontSize: '1.1em', color: 'var(--text-secondary)' }}>{actionMessage}</p>
                   <button
                     onClick={() => router.push(`/create-thread?lat=${location.latitude}&lon=${location.longitude}`)}
-                    style={{ padding: '10px 20px', fontSize: '1em', cursor: 'pointer', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '5px' }}
+                    style={{ padding: '10px 20px', fontSize: '1em', cursor: 'pointer', backgroundColor: 'var(--accent-color, #28a745)', color: 'white', border: 'none', borderRadius: '5px' }}
                   >
                     新規スレッドを作成する
                   </button>
