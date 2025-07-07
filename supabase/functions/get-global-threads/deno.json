@@ -1,0 +1,9 @@
+{
+    "imports": {},
+    "compilerOptions": {
+      "types": [
+        "https://deno.land/std@0.177.0/types/deno.ns.d.ts",
+        "https://deno.land/std@0.177.0/types/global.d.ts"
+      ]
+    }
+  }

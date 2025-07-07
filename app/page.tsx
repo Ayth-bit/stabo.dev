@@ -36,13 +36,47 @@ type EdgeFunctionResponse = {
   error?: string;
 };
 
+// ★★★ 新しいユニークスレッドリストのコンポーネント ★★★
+const UniqueThreadsList = ({ threads }: { threads: ThreadInfo[] }) => {
+  const router = useRouter();
+
+  if (threads.length === 0) {
+    return null;
+  }
+
+  return (
+    <div style={{ marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px', borderTopColor: '#ffd700', borderTopWidth: '2px' }}>
+      <h2 style={{ textAlign: 'center', color: '#e6a800' }}>★ 注目のユニークスレッド</h2>
+      <ul style={{ listStyle: 'none', padding: 0 }}>
+        {threads.map((thread) => (
+          <li
+            key={thread.id}
+            style={{ marginBottom: '15px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', cursor: 'pointer', transition: 'background-color 0.2s' }}
+            onClick={() => router.push(`/thread/${thread.id}`)}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0, color: '#007bff' }}>
+              {thread.title}
+            </p>
+            <p style={{ fontSize: '0.8em', color: '#6c757d', margin: '5px 0 0' }}>
+              投稿数: {thread.post_count}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+
 const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
   const router = useRouter();
 
   if (threads.length === 0) {
     return null;
   }
-  
+
   return (
     <div style={{ marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
       <h2 style={{ textAlign: 'center', color: '#555' }}>近くの他のスレッド</h2>
@@ -51,24 +85,15 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
           <li
             key={thread.id}
             style={{ marginBottom: '15px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', cursor: 'pointer', transition: 'background-color 0.2s' }}
-            onClick={(e) => {
-              e.preventDefault();
-              if (thread.is_global) {
-                router.push(`/thread/${thread.id}`);
-              } else {
-                window.open(`https://maps.google.com/?q=${thread.latitude},${thread.longitude}`, '_blank');
-              }
-            }}
+            onClick={() => window.open(`https://maps.google.com/?q=${thread.latitude},${thread.longitude}`, '_blank')}
             onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
             onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
-            <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0, color: thread.is_global ? '#007bff' : '#333' }}>
-              {thread.is_global && '★ '}
+            <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0, color: '#333' }}>
               {thread.title}
             </p>
             <p style={{ fontSize: '0.8em', color: '#6c757d', margin: '5px 0 0' }}>
-              投稿数: {thread.post_count}
-              {!thread.is_global && ` | 距離: ${thread.distance.toFixed(2)} km`}
+              投稿数: {thread.post_count} | 距離: {thread.distance.toFixed(2)} km
             </p>
           </li>
         ))}
@@ -87,16 +112,21 @@ const HomePage = () => {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [foundThread, setFoundThread] = useState<ThreadInfo | null>(null);
   const [distantThreads, setDistantThreads] = useState<DistantThreadInfo[]>([]);
+  const [uniqueThreads, setUniqueThreads] = useState<ThreadInfo[]>([]); // ★ ユニークスレッド用のStateを追加
 
   const handleLocationProcessed = async (lat: number, lon: number) => {
     setCurrentStatus('スレッドを検索中...');
     try {
-      const { data: mainData, error: mainError } = await supabase.functions.invoke<EdgeFunctionResponse>('handle-location', {
-        body: { latitude: lat, longitude: lon },
-      });
+      // 3つの関数を並行して呼び出す
+      const [mainResult, distantResult, uniqueResult] = await Promise.all([
+        supabase.functions.invoke<EdgeFunctionResponse>('handle-location', { body: { latitude: lat, longitude: lon } }),
+        supabase.functions.invoke<DistantThreadInfo[]>('get-distant-threads', { body: { latitude: lat, longitude: lon } }),
+        supabase.functions.invoke<ThreadInfo[]>('get-global-threads')
+      ]);
 
+      const { data: mainData, error: mainError } = mainResult;
       if (mainError) throw mainError;
-      if (!mainData) throw new Error('Function did not return data.');
+      if (!mainData) throw new Error('Function "handle-location" did not return data.');
       if (mainData.error) throw new Error(mainData.error);
 
       if (mainData.type === 'found_thread' && mainData.thread) {
@@ -107,15 +137,13 @@ const HomePage = () => {
         setFoundThread(null);
       }
       
-      const { data: distantData, error: distantError } = await supabase.functions.invoke<DistantThreadInfo[]>('get-distant-threads', {
-        body: { latitude: lat, longitude: lon },
-      });
-      
-      if (distantError) {
-          console.warn('Could not fetch distant threads:', distantError.message);
-      } else if (distantData) {
-          setDistantThreads(distantData);
-      }
+      const { data: distantData, error: distantError } = distantResult;
+      if (distantError) console.warn('Could not fetch distant threads:', distantError.message);
+      else if (distantData) setDistantThreads(distantData);
+
+      const { data: uniqueData, error: uniqueError } = uniqueResult;
+      if (uniqueError) console.warn('Could not fetch unique threads:', uniqueError.message);
+      else if (uniqueData) setUniqueThreads(uniqueData);
 
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -136,21 +164,23 @@ const HomePage = () => {
       () => {
         setLocation({ latitude: null, longitude: null, error: '位置情報へのアクセスが拒否されました。設定を確認してください。' });
         setIsLoading(false);
+        // 位置情報がなくてもユニークスレッドは取得する
+        handleLocationProcessed(0, 0); // ダミーの緯度経度で呼び出す
       }
     );
   }, []);
 
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '600px', margin: 'auto', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', backgroundColor: '#fff', color: '#333' }}>
-      <h1 style={{ textAlign: 'center', color: '#333' }}>Stabo_α版</h1>
+      <h1 style={{ textAlign: 'center', color: '#333' }}>stabo.dev</h1>
       
       {isLoading ? (
         <p style={{ textAlign: 'center', fontSize: '1.2em', color: '#555' }}>{currentStatus}</p>
       ) : (
         <div>
-          {location.error ? (
-            <p style={{ color: 'red', textAlign: 'center' }}>{location.error}</p>
-          ) : (
+          {location.error && <p style={{ color: 'red', textAlign: 'center' }}>{location.error}</p>}
+          
+          {!location.error && (
             <>
               <p style={{ textAlign: 'center', fontSize: '0.9em', color: '#777' }}>
                 緯度: {location.latitude?.toFixed(5)}, 経度: {location.longitude?.toFixed(5)}
@@ -178,9 +208,12 @@ const HomePage = () => {
                   </button>
                 </div>
               )}
-              <DistantThreadsList threads={distantThreads} />
             </>
           )}
+
+          {/* ★★★ 新しいユニークスレッドリストをここに追加 ★★★ */}
+          <UniqueThreadsList threads={uniqueThreads} />
+          <DistantThreadsList threads={distantThreads} />
         </div>
       )}
     </div>
