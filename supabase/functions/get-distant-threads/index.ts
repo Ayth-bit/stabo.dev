@@ -34,7 +34,9 @@ serve(async (req) => {
     .from('threads')
     // ★★★ この select 文に is_global が含まれていることが非常に重要です ★★★
     .select('id, title, latitude, longitude, post_count, is_global')
-    .lt('post_count', MAX_POST_COUNT);
+    .lt('post_count', MAX_POST_COUNT)
+    .eq('is_global', false); // グローバルスレッドは除外
+  
 
     if (fetchError) throw fetchError;
     if (!allThreads) {
