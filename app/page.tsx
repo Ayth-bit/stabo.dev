@@ -36,7 +36,6 @@ type EdgeFunctionResponse = {
   error?: string;
 };
 
-// ★★★ 新しいユニークスレッドリストのコンポーネント ★★★
 const UniqueThreadsList = ({ threads }: { threads: ThreadInfo[] }) => {
   const router = useRouter();
 
@@ -45,7 +44,7 @@ const UniqueThreadsList = ({ threads }: { threads: ThreadInfo[] }) => {
   }
 
   return (
-    <div style={{ marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px', borderTopColor: '#ffd700', borderTopWidth: '2px' }}>
+    <div style={{ marginTop: '30px', borderTop: '2px solid #ffd700', paddingTop: '20px' }}>
       <h2 style={{ textAlign: 'center', color: '#e6a800' }}>★ 注目のユニークスレッド</h2>
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {threads.map((thread) => (
@@ -71,8 +70,7 @@ const UniqueThreadsList = ({ threads }: { threads: ThreadInfo[] }) => {
 
 
 const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
-  const router = useRouter();
-
+  // ★★★ 不要な useRouter を削除 ★★★
   if (threads.length === 0) {
     return null;
   }
@@ -112,12 +110,11 @@ const HomePage = () => {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [foundThread, setFoundThread] = useState<ThreadInfo | null>(null);
   const [distantThreads, setDistantThreads] = useState<DistantThreadInfo[]>([]);
-  const [uniqueThreads, setUniqueThreads] = useState<ThreadInfo[]>([]); // ★ ユニークスレッド用のStateを追加
+  const [uniqueThreads, setUniqueThreads] = useState<ThreadInfo[]>([]);
 
   const handleLocationProcessed = async (lat: number, lon: number) => {
     setCurrentStatus('スレッドを検索中...');
     try {
-      // 3つの関数を並行して呼び出す
       const [mainResult, distantResult, uniqueResult] = await Promise.all([
         supabase.functions.invoke<EdgeFunctionResponse>('handle-location', { body: { latitude: lat, longitude: lon } }),
         supabase.functions.invoke<DistantThreadInfo[]>('get-distant-threads', { body: { latitude: lat, longitude: lon } }),
@@ -163,9 +160,8 @@ const HomePage = () => {
       },
       () => {
         setLocation({ latitude: null, longitude: null, error: '位置情報へのアクセスが拒否されました。設定を確認してください。' });
-        setIsLoading(false);
         // 位置情報がなくてもユニークスレッドは取得する
-        handleLocationProcessed(0, 0); // ダミーの緯度経度で呼び出す
+        handleLocationProcessed(0, 0);
       }
     );
   }, []);
@@ -211,7 +207,6 @@ const HomePage = () => {
             </>
           )}
 
-          {/* ★★★ 新しいユニークスレッドリストをここに追加 ★★★ */}
           <UniqueThreadsList threads={uniqueThreads} />
           <DistantThreadsList threads={distantThreads} />
         </div>
