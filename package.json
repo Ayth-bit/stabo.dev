@@ -6,7 +6,10 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "bolt:sync": "node scripts/sync-bolt.js sync",
+    "bolt:check": "node scripts/sync-bolt.js check",
+    "bolt:export": "node scripts/sync-bolt.js export"
   },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.10.0",
