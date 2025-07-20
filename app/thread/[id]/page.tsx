@@ -113,6 +113,23 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
 
     checkAccessAndFetchData();
 
+    // ★★★ リアルタイムリスナーの設定 ★★★
+    const postsChannel = supabase
+      .channel(`thread_posts:${threadId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'posts', filter: `thread_id=eq.${threadId}` },
+        (payload) => {
+          // 新しい投稿をposts配列の末尾に追加する
+          setPosts((currentPosts) => [...currentPosts, payload.new as Post]);
+        }
+      )
+      .subscribe();
+
+    // クリーンアップ関数
+    return () => {
+      supabase.removeChannel(postsChannel);
+    };
   }, [threadId]);
 
   useEffect(() => {
@@ -137,6 +154,7 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
 
       if (insertError) throw insertError;
       
+      // ★ 投稿後の手動フェッチは不要なので削除
       setContent('');
       setPostLink('');
     } catch (err: unknown) {
