@@ -105,15 +105,14 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
           },
           () => { throw new Error('位置情報の取得に失敗しました。アクセス許可を確認してください。'); }
         );
-      } catch (err: any) {
-        setPageStatus({ loading: false, error: err.message, isAccessAllowed: false, canWrite: false });
+      } catch (err: unknown) { // ★ 'any' を 'unknown' に修正
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setPageStatus({ loading: false, error: errorMessage, isAccessAllowed: false, canWrite: false });
       }
     };
 
     checkAccessAndFetchData();
     
-    // ... リアルタイムリスナー ...
-
   }, [threadId]);
 
   useEffect(() => {
@@ -140,8 +139,9 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
 
       setContent('');
       setPostLink('');
-    } catch (err: any) {
-      setPageStatus(prev => ({ ...prev, error: `投稿エラー: ${err.message}` }));
+    } catch (err: unknown) { // ★ 'any' を 'unknown' に修正
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setPageStatus(prev => ({ ...prev, error: `投稿エラー: ${errorMessage}` }));
     } finally {
       setSubmittingPost(false);
     }
@@ -212,7 +212,6 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
         </form>
       </div>
 
-      {/* ★★★ ここにトップページへのリンクを追加しました ★★★ */}
       <div style={{ textAlign: 'center', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
         <button
           onClick={() => router.push('/')}
@@ -228,7 +227,6 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
           トップページに戻る
         </button>
       </div>
-
     </div>
   );
 };
