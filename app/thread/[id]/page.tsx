@@ -27,70 +27,62 @@ type Post = {
   content: string;
   created_at: string;
   font_family: string | null;
+  link: string | null;
+  color: string | null;
 };
 
 const MAX_POSTS = parseInt(process.env.NEXT_PUBLIC_MAX_POST_COUNT || '1000', 10);
+const WRITE_RADIUS_KM = 0.3;
+const READ_RADIUS_KM = 1.5;
 
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
   const R = 6371;
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
 
-
 const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
   const router = useRouter();
-  
   const resolvedParams = React.use(params);
   const threadId = resolvedParams.id;
 
   const [thread, setThread] = useState<Thread | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [pageStatus, setPageStatus] = useState({
-    loading: true,
-    error: null as string | null,
-    isAccessAllowed: null as boolean | null
-  });
-
+  const [pageStatus, setPageStatus] = useState({ loading: true, error: null as string | null, isAccessAllowed: false, canWrite: false });
   const [authorName, setAuthorName] = useState('');
   const [content, setContent] = useState('');
   const [submittingPost, setSubmittingPost] = useState(false);
-  
-  const [selectedFont, setSelectedFont] = useState('var(--font-noto-sans-jp)'); 
-  
+  const [selectedFont, setSelectedFont] = useState('var(--font-noto-sans-jp)');
+  const [postLink, setPostLink] = useState('');
+  const [postColor, setPostColor] = useState('#333333');
+
   const postsEndRef = useRef<HTMLDivElement>(null);
-  
+
   useEffect(() => {
     if (!threadId) {
-      setPageStatus({ loading: false, error: "スレッドIDが指定されていません。", isAccessAllowed: false });
+      setPageStatus({ loading: false, error: "スレッドIDが指定されていません。", isAccessAllowed: false, canWrite: false });
       return;
     }
 
     const checkAccessAndFetchData = async () => {
       try {
-        const { data: threadData, error: threadError } = await supabase
-          .from('threads')
-          .select('*, is_global')
-          .eq('id', threadId)
-          .single();
-
-        if (threadError || !threadData) {
-          throw new Error(threadError?.message || 'スレッドが見つかりません。');
-        }
+        const { data: threadData, error: threadError } = await supabase.from('threads').select('*, is_global').eq('id', threadId).single();
+        if (threadError || !threadData) throw new Error('スレッドが見つかりません。');
         setThread(threadData);
-        
+
+        const fetchPosts = async () => {
+          const { data: postsData, error: postsError } = await supabase.from('posts').select('*').eq('thread_id', threadId).order('created_at', { ascending: true });
+          if (postsError) throw postsError;
+          setPosts(postsData);
+        };
+
         if (threadData.is_global) {
-            const { data: postsData, error: postsError } = await supabase.from('posts').select('*').eq('thread_id', threadId).order('created_at', { ascending: true });
-            if (postsError) throw postsError;
-            setPosts(postsData);
-            setPageStatus({ loading: false, error: null, isAccessAllowed: true });
-            return;
+          await fetchPosts();
+          setPageStatus({ loading: false, error: null, isAccessAllowed: true, canWrite: true });
+          return;
         }
 
         if (!navigator.geolocation) {
@@ -102,175 +94,141 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
             const { latitude: currentLat, longitude: currentLon } = position.coords;
             const distance = calculateDistance(currentLat, currentLon, threadData.latitude, threadData.longitude);
 
-            if (distance > 1) {
-              setPageStatus({ loading: false, error: `このスレッドは範囲外です (距離: ${distance.toFixed(2)}km)。`, isAccessAllowed: false });
+            if (distance > READ_RADIUS_KM) {
+              setPageStatus({ loading: false, error: `このスレッドは範囲外です (距離: ${distance.toFixed(2)}km)。`, isAccessAllowed: false, canWrite: false });
             } else {
-              const { data: postsData, error: postsError } = await supabase.from('posts').select('*').eq('thread_id', threadId).order('created_at', { ascending: true });
-              if (postsError) throw postsError;
-              setPosts(postsData);
-              setPageStatus({ loading: false, error: null, isAccessAllowed: true });
+              await fetchPosts();
+              const canWrite = distance <= WRITE_RADIUS_KM;
+              const errorMsg = canWrite ? null : `読み取り専用モード (書き込みするには${WRITE_RADIUS_KM * 1000}m以内に近づいてください)`;
+              setPageStatus({ loading: false, error: errorMsg, isAccessAllowed: true, canWrite });
             }
           },
-          () => {
-            throw new Error('位置情報の取得に失敗しました。アクセス許可を確認してください。');
-          }
+          () => { throw new Error('位置情報の取得に失敗しました。アクセス許可を確認してください。'); }
         );
-      } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        setPageStatus({ loading: false, error: errorMessage, isAccessAllowed: false });
+      } catch (err: any) {
+        setPageStatus({ loading: false, error: err.message, isAccessAllowed: false, canWrite: false });
       }
     };
 
     checkAccessAndFetchData();
+    
+    // ... リアルタイムリスナー ...
 
-    const postsChannel = supabase.channel(`thread_posts:${threadId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts', filter: `thread_id=eq.${threadId}` }, (payload) => { setPosts((prev) => [...prev, payload.new as Post]); }).subscribe();
-    const threadsChannel = supabase.channel(`threads:${threadId}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'threads', filter: `id=eq.${threadId}` }, (payload) => { setThread(payload.new as Thread); }).subscribe();
-
-    return () => {
-      supabase.removeChannel(postsChannel);
-      supabase.removeChannel(threadsChannel);
-    };
   }, [threadId]);
 
   useEffect(() => {
-    if (postsEndRef.current) {
-      postsEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
+    if (postsEndRef.current) postsEndRef.current.scrollIntoView({ behavior: 'smooth' });
   }, [posts]);
-
 
   const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!pageStatus.canWrite || !content.trim() || !thread) return;
     setSubmittingPost(true);
     setPageStatus(prev => ({ ...prev, error: null }));
 
-    if (!content.trim() || !thread) {
-        setSubmittingPost(false);
-        return;
-    }
-    
-    const postData = async () => {
-        try {
-            const { error: insertError } = await supabase.from('posts').insert([{
-                thread_id: threadId,
-                author_name: authorName.trim() || null,
-                content: content.trim(),
-                font_family: selectedFont,
-            }]);
-            if (insertError) throw insertError;
-            setContent('');
-        } catch (err) {
-            setPageStatus(prev => ({...prev, error: `投稿エラー: ${err instanceof Error ? err.message : String(err)}`}));
-        } finally {
-            setSubmittingPost(false);
-        }
-    };
-    
-    if (thread.is_global) {
-        await postData();
-        return;
-    }
+    try {
+      const { error: insertError } = await supabase.from('posts').insert([{
+        thread_id: threadId,
+        author_name: authorName.trim() || null,
+        content: content.trim(),
+        font_family: selectedFont,
+        link: postLink.trim() || null,
+        color: postColor,
+      }]);
 
-    if (!navigator.geolocation) {
-      setPageStatus(prev => ({...prev, error: '位置情報が利用できません。'}));
+      if (insertError) throw insertError;
+
+      setContent('');
+      setPostLink('');
+    } catch (err: any) {
+      setPageStatus(prev => ({ ...prev, error: `投稿エラー: ${err.message}` }));
+    } finally {
       setSubmittingPost(false);
-      return;
     }
-
-    navigator.geolocation.getCurrentPosition(
-        async (position) => {
-            const distance = calculateDistance(position.coords.latitude, position.coords.longitude, thread.latitude, thread.longitude);
-            if (distance > 1) {
-                setPageStatus(prev => ({...prev, error: 'スレッドの範囲外です。投稿できません。'}));
-                setSubmittingPost(false);
-            } else {
-                await postData();
-            }
-        },
-        () => {
-            setPageStatus(prev => ({...prev, error: '位置情報の取得に失敗しました。'}));
-            setSubmittingPost(false);
-        }
-    );
   };
 
   if (pageStatus.loading) {
-    return <div style={{ textAlign: 'center', padding: '50px', fontFamily: 'sans-serif' }}>アクセス確認中...</div>;
+    return <div style={{ textAlign: 'center', padding: '50px' }}>アクセス確認中...</div>;
   }
 
   if (!pageStatus.isAccessAllowed || !thread) {
     return (
-      <div style={{ textAlign: 'center', padding: '50px', fontFamily: 'sans-serif' }}>
-        <p style={{ color: 'red', fontWeight: 'bold', fontSize: '1.2em' }}>{pageStatus.error || 'アクセスできませんでした。'}</p>
-        <button onClick={() => router.push('/')} style={{ marginTop: '20px', padding: '10px 20px', cursor: 'pointer', border: '1px solid #ccc', borderRadius: '5px' }}>トップページに戻る</button>
+      <div style={{ textAlign: 'center', padding: '50px' }}>
+        <p style={{ color: 'red', fontWeight: 'bold' }}>{pageStatus.error || 'アクセスできませんでした。'}</p>
+        <button onClick={() => router.push('/')} style={{ marginTop: '20px' }}>トップページに戻る</button>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+    <div style={{ padding: '20px', maxWidth: '800px', margin: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
       <h1 style={{ textAlign: 'center', color: 'var(--text-primary)' }}>{thread.title}</h1>
-      <p style={{ textAlign: 'center', fontSize: '0.9em', color: 'var(--text-tertiary)', marginBottom: '20px' }}>
-        作成日時: {new Date(thread.created_at).toLocaleString()} | 投稿数: {thread.post_count} / {MAX_POSTS}
-      </p>
+      <p style={{ textAlign: 'center', fontSize: '0.9em', color: 'var(--text-tertiary)' }}>投稿数: {thread.post_count} / {MAX_POSTS}</p>
 
-      <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
+      <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
         <h2 style={{ color: 'var(--text-secondary)' }}>投稿一覧</h2>
-        <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '10px', borderRadius: '4px', backgroundColor: 'rgb(var(--card-bg-rgb))' }}>
-          {posts.length === 0 ? <p style={{ textAlign: 'center', color: 'var(--text-tertiary)' }}>まだ投稿がありません。</p> : (
-            // ★ (post, index) の 'index' を削除
-            posts.map((post) => (
-              <div key={post.id} style={{ marginBottom: '10px', paddingBottom: '10px', borderBottom: `1px dashed var(--border-color)` }}>
-                <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginBottom: '5px' }}>
-                  <strong style={{ color: 'var(--text-primary)' }}>{post.author_name || '匿名'}</strong>{' '}
-                  <span style={{ fontSize: '0.8em', color: 'var(--text-tertiary)' }}>({new Date(post.created_at).toLocaleString()})</span>
-                </p>
-                <p style={{ fontFamily: post.font_family || 'var(--font-noto-sans-jp)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--text-primary)' }}>
-                  {post.content}
-                </p>
-              </div>
-            ))
-          )}
+        <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '10px' }}>
+          {posts.map(post => (
+            <div key={post.id} style={{ borderBottom: '1px dashed var(--border-color)', marginBottom: '15px', paddingBottom: '15px' }}>
+              <p style={{ fontFamily: post.font_family || 'inherit', color: 'var(--text-secondary)', margin: '0 0 5px 0' }}>
+                <strong style={{ color: post.color || 'var(--text-primary)' }}>{post.author_name || '匿名'}</strong>
+                <span style={{ fontSize: '0.8em' }}> ({new Date(post.created_at).toLocaleString()})</span>
+              </p>
+              <p style={{ fontFamily: post.font_family || 'inherit', color: post.color || 'var(--text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0 }}>
+                {post.content}
+              </p>
+              {post.link && (
+                <a href={post.link} target="_blank" rel="noopener noreferrer" style={{ color: '#007bff', textDecoration: 'underline', fontSize: '0.9em', display: 'block', marginTop: '5px' }}>
+                  {post.link}
+                </a>
+              )}
+            </div>
+          ))}
           <div ref={postsEndRef} />
         </div>
       </div>
 
-      <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '20px', marginTop: '20px' }}>
+      <div style={{ marginTop: '30px', borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
         <h2 style={{ color: 'var(--text-secondary)' }}>新規投稿</h2>
-        {thread.post_count >= MAX_POSTS && <p style={{ color: 'orange', fontWeight: 'bold', textAlign: 'center' }}>このスレッドは上限に達しました。</p>}
-        {pageStatus.error && <p style={{ color: 'red', textAlign: 'center' }}>{pageStatus.error}</p>}
-        
-        <form onSubmit={handlePostSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <div>
-            <label htmlFor="authorName" style={{ display: 'block', marginBottom: '5px' }}>名前 (任意):</label>
-            <input type="text" id="authorName" value={authorName} onChange={(e) => setAuthorName(e.target.value)} disabled={submittingPost || thread.post_count >= MAX_POSTS} style={{ width: '100%', padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px', boxSizing: 'border-box', background: 'rgb(var(--card-bg-rgb))', color: 'var(--text-primary)' }}/>
-          </div>
-          <div>
-            <label htmlFor="content" style={{ display: 'block', marginBottom: '5px' }}>コメント:</label>
-            <textarea id="content" value={content} onChange={(e) => setContent(e.target.value)} rows={5} required disabled={submittingPost || thread.post_count >= MAX_POSTS} style={{ width: '100%', padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px', boxSizing: 'border-box', fontFamily: selectedFont, background: 'rgb(var(--card-bg-rgb))', color: 'var(--text-primary)' }}/>
-          </div>
-          
-          <div>
-            <label htmlFor="font-select" style={{ display: 'block', marginBottom: '5px' }}>フォント:</label>
-            <select id="font-select" value={selectedFont} onChange={(e) => setSelectedFont(e.target.value)} disabled={submittingPost || thread.post_count >= MAX_POSTS} style={{ width: '100%', padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px', background: 'rgb(var(--card-bg-rgb))', color: 'var(--text-primary)' }}>
-              <option value="var(--font-noto-sans-jp)">ゴシック体 (標準)</option>
-              <option value="var(--font-yuji-syuku)">手書き風 (Yuji Syuku)</option>
-              <option value="var(--font-zen-kaku)">やさしいゴシック (Zen Kaku)</option>
-              <option value="var(--font-dot-gothic)">ドット文字 (DotGothic16)</option>
+        {pageStatus.error && <p style={{ color: pageStatus.canWrite ? 'red' : 'orange', textAlign: 'center' }}>{pageStatus.error}</p>}
+        <form onSubmit={handlePostSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px', opacity: pageStatus.canWrite ? 1 : 0.6, pointerEvents: pageStatus.canWrite ? 'auto' : 'none' }}>
+          <input type="text" placeholder="名前 (任意)" value={authorName} onChange={e => setAuthorName(e.target.value)} style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px' }}/>
+          <textarea placeholder="コメント" value={content} onChange={e => setContent(e.target.value)} required rows={5} style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px', fontFamily: selectedFont, color: postColor, transition: 'all 0.2s' }}/>
+          <input type="url" placeholder="https://example.com (任意)" value={postLink} onChange={e => setPostLink(e.target.value)} style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px' }}/>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <select value={selectedFont} onChange={e => setSelectedFont(e.target.value)} style={{ flex: 1, padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px' }}>
+              <option value="var(--font-noto-sans-jp)">ゴシック体</option>
+              <option value="var(--font-yuji-syuku)">手書き風</option>
+              <option value="var(--font-zen-kaku)">やさしいゴシック</option>
+              <option value="var(--font-dot-gothic)">ドット文字</option>
               <option value="serif">明朝体</option>
               <option value="monospace">等幅フォント</option>
             </select>
+            <input type="color" value={postColor} onChange={e => setPostColor(e.target.value)} style={{ padding: '2px', height: '40px', border: '1px solid var(--border-color)', borderRadius: '4px' }}/>
           </div>
-          
-          <button type="submit" disabled={submittingPost || thread.post_count >= MAX_POSTS} style={{ padding: '12px 20px', fontSize: '1.1em', backgroundColor: `rgb(var(--primary-rgb))`, color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', opacity: submittingPost ? 0.5 : 1 }}>
+          <button type="submit" disabled={!pageStatus.canWrite || submittingPost} style={{ padding: '12px', fontSize: '1.1em', backgroundColor: `rgb(var(--primary-rgb))`, color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
             {submittingPost ? '投稿中...' : '投稿する'}
           </button>
         </form>
       </div>
 
-      <div style={{ textAlign: 'center', marginTop: '20px' }}>
-        <button onClick={() => router.push('/')} style={{ background: 'none', border: 'none', color: `rgb(var(--primary-rgb))`, cursor: 'pointer', textDecoration: 'underline' }}>トップページに戻る</button>
+      {/* ★★★ ここにトップページへのリンクを追加しました ★★★ */}
+      <div style={{ textAlign: 'center', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
+        <button
+          onClick={() => router.push('/')}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: `rgb(var(--primary-rgb))`,
+            cursor: 'pointer',
+            fontSize: '1em',
+            textDecoration: 'underline'
+          }}
+        >
+          トップページに戻る
+        </button>
       </div>
+
     </div>
   );
 };

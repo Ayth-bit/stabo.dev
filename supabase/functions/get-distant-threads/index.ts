@@ -60,7 +60,7 @@ serve(async (req) => {
     );
 
     const distantThreads = threadsWithDistance
-      .filter((thread): thread is NonNullable<typeof thread> => thread !== null && thread.distance > 1)
+      .filter((thread): thread is NonNullable<typeof thread> => thread !== null && thread.distance > 1.5)
       .sort((a, b) => a.distance - b.distance)
       .slice(0, 4);
 
