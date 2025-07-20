@@ -113,20 +113,17 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
 
     checkAccessAndFetchData();
 
-    // ★★★ リアルタイムリスナーの設定 ★★★
     const postsChannel = supabase
       .channel(`thread_posts:${threadId}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'posts', filter: `thread_id=eq.${threadId}` },
         (payload) => {
-          // 新しい投稿をposts配列の末尾に追加する
           setPosts((currentPosts) => [...currentPosts, payload.new as Post]);
         }
       )
       .subscribe();
 
-    // クリーンアップ関数
     return () => {
       supabase.removeChannel(postsChannel);
     };
@@ -153,8 +150,7 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
       }]);
 
       if (insertError) throw insertError;
-      
-      // ★ 投稿後の手動フェッチは不要なので削除
+
       setContent('');
       setPostLink('');
     } catch (err: unknown) {
@@ -214,17 +210,33 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
           <textarea placeholder="コメント" value={content} onChange={e => setContent(e.target.value)} required rows={5} style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px', fontFamily: selectedFont, color: postColor, transition: 'all 0.2s' }}/>
           <input type="url" placeholder="https://example.com (任意)" value={postLink} onChange={e => setPostLink(e.target.value)} style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px' }}/>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <select value={selectedFont} onChange={e => setSelectedFont(e.target.value)} style={{ flex: 1, padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px' }}>
+            <select
+              value={selectedFont}
+              onChange={e => setSelectedFont(e.target.value)}
+              style={{ flex: 1, padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px' }}
+              disabled={!pageStatus.canWrite}
+            >
               <option value="var(--font-noto-sans-jp)">ゴシック体</option>
+              <option value="'Nico Moji'">ニコモジ</option>
               <option value="var(--font-yuji-syuku)">手書き風</option>
               <option value="var(--font-zen-kaku)">やさしいゴシック</option>
               <option value="var(--font-dot-gothic)">ドット文字</option>
               <option value="serif">明朝体</option>
               <option value="monospace">等幅フォント</option>
             </select>
-            <input type="color" value={postColor} onChange={e => setPostColor(e.target.value)} style={{ padding: '2px', height: '40px', border: '1px solid var(--border-color)', borderRadius: '4px' }}/>
+            <input
+              type="color"
+              value={postColor}
+              onChange={e => setPostColor(e.target.value)}
+              style={{ padding: '2px', height: '40px', border: '1px solid var(--border-color)', borderRadius: '4px' }}
+              disabled={!pageStatus.canWrite}
+            />
           </div>
-          <button type="submit" disabled={!pageStatus.canWrite || submittingPost} style={{ padding: '12px', fontSize: '1.1em', backgroundColor: `rgb(var(--primary-rgb))`, color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
+          <button
+            type="submit"
+            disabled={!pageStatus.canWrite || submittingPost}
+            style={{ padding: '12px', fontSize: '1.1em', backgroundColor: `rgb(var(--primary-rgb))`, color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
+          >
             {submittingPost ? '投稿中...' : '投稿する'}
           </button>
         </form>
@@ -233,14 +245,7 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
       <div style={{ textAlign: 'center', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
         <button
           onClick={() => router.push('/')}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: `rgb(var(--primary-rgb))`,
-            cursor: 'pointer',
-            fontSize: '1em',
-            textDecoration: 'underline'
-          }}
+          style={{ background: 'none', border: 'none', color: `rgb(var(--primary-rgb))`, cursor: 'pointer', fontSize: '1em', textDecoration: 'underline' }}
         >
           トップページに戻る
         </button>

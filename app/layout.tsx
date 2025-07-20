@@ -1,6 +1,5 @@
 // app/layout.tsx
 import type { Metadata } from "next";
-// ★ Nico_Moji をインポートから削除
 import { Noto_Sans_JP, Yuji_Syuku, Zen_Kaku_Gothic_New, DotGothic16, M_PLUS_Rounded_1c } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -27,7 +26,7 @@ const zenKakuGothicNew = Zen_Kaku_Gothic_New({
 const dotGothic = DotGothic16({
   subsets: ["latin"],
   variable: "--font-dot-gothic",
-  weight: '400', 
+  weight: '400',
 });
 
 const mplusRounded = M_PLUS_Rounded_1c({
@@ -35,8 +34,6 @@ const mplusRounded = M_PLUS_Rounded_1c({
   variable: '--font-m-plus-rounded',
   weight: '400',
 });
-
-// ★ Nico_Moji の設定を削除
 
 // --- メタデータ定義 ---
 export const metadata: Metadata = {
@@ -51,7 +48,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
-      {/* ★ bodyのclassNameからNico_Mojiの変数を削除 */}
+      {/* ★★★ headタグにニコモジフォントのリンクを追加 ★★★ */}
+      <head>
+        <link href="https://fonts.googleapis.com/earlyaccess/nicomoji.css" rel="stylesheet" />
+      </head>
       <body className={`${notoSansJp.variable} ${yujiSyuku.variable} ${zenKakuGothicNew.variable} ${dotGothic.variable} ${mplusRounded.variable} antialiased`}>
         <ThemeProvider>
           <ThemeSwitcher />
