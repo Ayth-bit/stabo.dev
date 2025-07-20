@@ -47,24 +47,17 @@ const UniqueThreadsList = ({ threads }: { threads: ThreadInfo[] }) => {
         {threads.map((thread) => (
           <li
             key={thread.id}
-            style={{ marginBottom: '15px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', cursor: 'pointer', transition: 'background-color 0.2s' }}
+            style={{ marginBottom: '15px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', cursor: 'pointer' }}
             onClick={() => router.push(`/thread/${thread.id}`)}
-            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
-            <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0, color: '#007bff' }}>
-              {thread.title}
-            </p>
-            <p style={{ fontSize: '0.8em', color: '#6c757d', margin: '5px 0 0' }}>
-              投稿数: {thread.post_count}
-            </p>
+            <p style={{ fontWeight: 'bold', margin: 0, color: '#007bff' }}>{thread.title}</p>
+            <p style={{ fontSize: '0.8em', color: '#6c757d', margin: '5px 0 0' }}>投稿数: {thread.post_count}</p>
           </li>
         ))}
       </ul>
     </div>
   );
 };
-
 
 const ReadOnlyThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
   const router = useRouter();
@@ -77,12 +70,10 @@ const ReadOnlyThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
         {threads.map((thread) => (
           <li
             key={thread.id}
-            style={{ marginBottom: '15px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', cursor: 'pointer', transition: 'background-color 0.2s' }}
+            style={{ marginBottom: '15px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', cursor: 'pointer' }}
             onClick={() => router.push(`/thread/${thread.id}`)}
-            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
-            <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0 }}>{thread.title}</p>
+            <p style={{ fontWeight: 'bold', margin: 0 }}>{thread.title}</p>
             <p style={{ fontSize: '0.8em', color: '#6c757d', margin: '5px 0 0' }}>
               投稿数: {thread.post_count} | 距離: {thread.distance.toFixed(2)} km
             </p>
@@ -101,24 +92,15 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
       <h2 style={{ textAlign: 'center', color: '#555' }}>遠くのスレッド (マップで表示)</h2>
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {threads.map((thread) => (
-          <li
-            key={thread.id}
-            style={{ marginBottom: '15px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', cursor: 'pointer', transition: 'background-color 0.2s' }}
-            onClick={() => window.open(`http://googleusercontent.com/maps/google.com/6{thread.latitude},${thread.longitude}`, '_blank')}
-            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-          >
-            <p style={{ fontSize: '1.1em', fontWeight: 'bold', margin: 0 }}>{thread.title}</p>
-            <p style={{ fontSize: '0.8em', color: '#6c757d', margin: '5px 0 0' }}>
-              投稿数: {thread.post_count} | 距離: {thread.distance.toFixed(2)} km
-            </p>
+          <li key={thread.id} style={{ marginBottom: '15px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', cursor: 'pointer' }} onClick={() => window.open(`http://googleusercontent.com/maps/google.com/6{thread.latitude},${thread.longitude}`, '_blank')}>
+            <p style={{ fontWeight: 'bold', margin: 0 }}>{thread.title}</p>
+            <p style={{ fontSize: '0.8em', color: '#6c757d', margin: '5px 0 0' }}>投稿数: {thread.post_count} | 距離: {thread.distance.toFixed(2)} km</p>
           </li>
         ))}
       </ul>
     </div>
   );
 };
-
 
 const HomePage = () => {
   const router = useRouter();
@@ -167,7 +149,7 @@ const HomePage = () => {
       if (readOnlyError) console.warn('Could not fetch readonly threads:', readOnlyError.message);
       else if (readOnlyData) setReadOnlyThreads(readOnlyData);
 
-    } catch (error: unknown) { // ★ 'any' を 'unknown' に修正
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       setActionMessage(`エラー: ${errorMessage}`);
     } finally {
@@ -191,9 +173,9 @@ const HomePage = () => {
   }, []);
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '600px', margin: 'auto', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', backgroundColor: '#fff', color: '#333' }}>
+    <div style={{ padding: '20px', maxWidth: '800px', margin: 'auto', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', backgroundColor: '#fff', color: '#333' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '10px', borderBottom: '1px solid #eee' }}>
-        <h1 style={{ textAlign: 'center', color: '#333', margin: 0 }}>stabo.dev</h1>
+        <h1 style={{ color: '#333', margin: 0, fontSize: '1.5em' }}>stabo.dev</h1>
         <a href="/lp" style={{ color: '#007bff', textDecoration: 'none', fontWeight: 'bold' }}>
           アプリについて
         </a>
@@ -213,22 +195,16 @@ const HomePage = () => {
               
               {foundThread ? (
                 <div style={{ borderTop: '1px solid #eee', paddingTop: '20px', textAlign: 'center', marginTop: '20px' }}>
-                  <p style={{ margin: '0 0 10px 0', fontSize: '1em', color: '#444' }}>{actionMessage}</p>
+                  <p style={{ margin: '0 0 10px 0', color: '#444' }}>{actionMessage}</p>
                   <p style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#333' }}>{`"${foundThread.title}"`}</p>
-                  <button
-                    onClick={() => router.push(`/thread/${foundThread.id}`)}
-                    style={{ padding: '10px 20px', fontSize: '1em', cursor: 'pointer', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '5px', marginTop: '10px' }}
-                  >
+                  <button onClick={() => router.push(`/thread/${foundThread.id}`)} style={{ padding: '10px 20px', cursor: 'pointer', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '5px', marginTop: '10px' }}>
                     スレッドを見る
                   </button>
                 </div>
               ) : (
                 <div style={{ borderTop: '1px solid #eee', paddingTop: '20px', textAlign: 'center', marginTop: '20px' }}>
-                   <p style={{ margin: '0 0 10px 0', fontSize: '1.1em', color: '#444' }}>{actionMessage}</p>
-                  <button
-                    onClick={() => router.push(`/create-thread?lat=${location.latitude}&lon=${location.longitude}`)}
-                    style={{ padding: '10px 20px', fontSize: '1em', cursor: 'pointer', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '5px' }}
-                  >
+                   <p style={{ margin: '0 0 10px 0', color: '#444' }}>{actionMessage}</p>
+                  <button onClick={() => router.push(`/create-thread?lat=${location.latitude}&lon=${location.longitude}`)} style={{ padding: '10px 20px', cursor: 'pointer', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '5px' }}>
                     新規スレッドを作成する
                   </button>
                 </div>
