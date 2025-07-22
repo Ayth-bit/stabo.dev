@@ -80,6 +80,7 @@ const UniqueThreadsList = ({ threads }: { threads: ThreadInfo[] }) => {
 };
 
 const ReadOnlyThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
+  const router = useRouter();
   if (threads.length === 0) return null;
 
   return (
@@ -105,14 +106,7 @@ const ReadOnlyThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
               cursor: "pointer",
               transition: "background-color 0.2s",
             }}
-            onClick={() => {
-              const mapUrl = `https://maps.google.com/?q=${thread.latitude},${thread.longitude}`;
-              try {
-                window.open(mapUrl, "_blank");
-              } catch {
-                window.location.href = mapUrl;
-              }
-            }}
+            onClick={() => router.push(`/thread/${thread.id}`)}
             onMouseOver={(e) =>
               (e.currentTarget.style.backgroundColor = "#f8f9fa")
             }
@@ -159,12 +153,17 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
               borderRadius: "5px",
               cursor: "pointer",
             }}
-            onClick={() =>
-              window.open(
-                `http://googleusercontent.com/maps/google.com/6{thread.latitude},${thread.longitude}`,
-                "_blank"
-              )
-            }
+            onClick={() => {
+              const mapUrl = `https://www.google.com/maps?q=${thread.latitude},${thread.longitude}&z=15`;
+              try {
+                const newWindow = window.open(mapUrl, "_blank", "noopener,noreferrer");
+                if (!newWindow) {
+                  throw new Error("ポップアップがブロックされました");
+                }
+              } catch {
+                window.location.href = mapUrl;
+              }
+            }}
           >
             <p style={{ fontWeight: "bold", margin: 0 }}>{thread.title}</p>
             <p
