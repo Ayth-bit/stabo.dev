@@ -82,7 +82,14 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
           <li
             key={thread.id}
             style={{ marginBottom: '15px', padding: '10px', border: '1px solid var(--border-color, #ddd)', borderRadius: '5px', cursor: 'pointer', transition: 'background-color 0.2s' }}
-            onClick={() => window.open(`https://maps.google.com/?q=${thread.latitude},${thread.longitude}`, '_blank')}
+            onClick={() => {
+              const mapUrl = `https://maps.google.com/?q=${thread.latitude},${thread.longitude}`;
+              try {
+                window.open(mapUrl, '_blank');
+              } catch {
+                window.location.href = mapUrl;
+              }
+            }}
             onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
             onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
