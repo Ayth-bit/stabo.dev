@@ -337,3 +337,6 @@ entrypoint = "./functions/get-distant-threads/index.ts"
 verify_jwt = true
 import_map = "./functions/get-global-threads/deno.json"
 entrypoint = "./functions/get-global-threads/index.ts"
+
+[functions.get-readonly-threads]
+verify_jwt = true

@@ -5,47 +5,39 @@ import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 
-
-
+// --- フォント設定 ---
 const notoSansJp = Noto_Sans_JP({
   subsets: ["latin"],
   variable: "--font-noto-sans-jp",
-  weight: ["400", "700"],
-  display: 'swap',
 });
 
 const yujiSyuku = Yuji_Syuku({
   subsets: ["latin"],
   variable: "--font-yuji-syuku",
   weight: "400",
-  display: 'swap',
 });
 
 const zenKakuGothicNew = Zen_Kaku_Gothic_New({
   subsets: ["latin"],
   variable: "--font-zen-kaku-gothic-new",
-  weight: ["400", "700"],
-  display: 'swap',
+  weight: "400",
 });
 
-// ★ DotGothic16 の設定を追加
 const dotGothic = DotGothic16({
   subsets: ["latin"],
   variable: "--font-dot-gothic",
-  weight: "400",
-  display: 'swap',
+  weight: '400',
 });
 
-const mplusRounded = M_PLUS_Rounded_1c({ 
+const mplusRounded = M_PLUS_Rounded_1c({
   subsets: ['latin'],
-  variable: '--font-m-plus-rounded', 
-  weight: ['400', '700'], 
-  display: 'swap' ,
+  variable: '--font-m-plus-rounded',
+  weight: '400',
 });
 
-
+// --- メタデータ定義 ---
 export const metadata: Metadata = {
-  title: 'Stabo',
+  title: 'stabo.dev',
   description: 'stabo.dev - your unique app experience "Stabo.world", change the world here.',
 };
 
@@ -56,7 +48,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
-      <body className={`${notoSansJp.variable} ${yujiSyuku.variable} ${zenKakuGothicNew.variable} ${dotGothic.variable} ${mplusRounded.variable}`}>
+      {/* ★★★ headタグにニコモジフォントのリンクを追加 ★★★ */}
+      <head>
+        <link href="https://fonts.googleapis.com/earlyaccess/nicomoji.css" rel="stylesheet" />
+      </head>
+      <body className={`${notoSansJp.variable} ${yujiSyuku.variable} ${zenKakuGothicNew.variable} ${dotGothic.variable} ${mplusRounded.variable} antialiased`}>
         <ThemeProvider>
           <ThemeSwitcher />
           {children}

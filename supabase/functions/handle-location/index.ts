@@ -50,7 +50,7 @@ serve(async (req) => {
 
     // スレッド検索の半径（キロメートル）を環境変数から取得
     // スレッド検索の半径（キロメートル）...
-    const SEARCH_RADIUS_KM = parseFloat(Deno.env.get('SEARCH_RADIUS_KM') || '1.0');
+    const SEARCH_RADIUS_KM = parseFloat(Deno.env.get('SEARCH_RADIUS_KM') || '0.3');
 
     // ★ 投稿数の上限を環境変数から取得
     const MAX_POST_COUNT = parseInt(Deno.env.get('MAX_POST_COUNT') || '1000', 10);

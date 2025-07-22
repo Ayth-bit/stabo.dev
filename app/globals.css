@@ -106,3 +106,8 @@
   background: rgb(var(--background-rgb)); /* 変更：直接背景色を適用 */
   transition: background-color 0.3s, color 0.3s;
 }
+
+/* ニコモジフォント用のスタイル */
+[style*="'Nico Moji'"] {
+  font-family: 'Nico Moji', sans-serif;
+}
