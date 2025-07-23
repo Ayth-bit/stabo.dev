@@ -4,6 +4,9 @@ import { Noto_Sans_JP, Yuji_Syuku, Zen_Kaku_Gothic_New, DotGothic16, M_PLUS_Roun
 import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { AuthProvider } from "@/components/AuthProvider";
+import { Navigation } from "@/components/Navigation";
+import LocationGuard from "@/components/LocationGuard";
 
 // --- フォント設定 ---
 const notoSansJp = Noto_Sans_JP({
@@ -54,8 +57,13 @@ export default function RootLayout({
       </head>
       <body className={`${notoSansJp.variable} ${yujiSyuku.variable} ${zenKakuGothicNew.variable} ${dotGothic.variable} ${mplusRounded.variable} antialiased`}>
         <ThemeProvider>
-          <ThemeSwitcher />
-          {children}
+          <AuthProvider>
+            <LocationGuard>
+              <Navigation />
+              <ThemeSwitcher />
+              {children}
+            </LocationGuard>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

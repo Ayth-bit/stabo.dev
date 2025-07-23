@@ -18,7 +18,7 @@ export const ThemeSwitcher = () => {
   // モダンテーマ用のスタイルを定義
   const switcherStyle: React.CSSProperties = {
     position: 'fixed',
-    top: '10px',
+    top: '80px',
     right: '10px',
     zIndex: 1000,
     background: theme === 'modern-chic' ? 'rgba(50, 50, 50, 0.9)' : 'rgba(255,255,255,0.8)',

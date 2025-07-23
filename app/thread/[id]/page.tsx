@@ -4,6 +4,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
+import ThreadLifecycleManager from '@/components/ThreadLifecycleManager';
 
 const supabase = createClientComponentClient({
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,6 +19,9 @@ type Thread = {
   created_at: string;
   post_count: number;
   is_global: boolean;
+  expires_at?: string;
+  is_archived?: boolean;
+  restore_count?: number;
 };
 
 type Post = {
@@ -69,7 +73,7 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
 
     const checkAccessAndFetchData = async () => {
       try {
-        const { data: threadData, error: threadError } = await supabase.from('threads').select('*, is_global').eq('id', threadId).single();
+        const { data: threadData, error: threadError } = await supabase.from('threads').select('*, is_global, expires_at, is_archived, restore_count').eq('id', threadId).single();
         if (threadError || !threadData) throw new Error('スレッドが見つかりません。');
         setThread(threadData);
 
@@ -174,10 +178,26 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
     );
   }
 
+  const handleThreadRestore = (_threadId: string) => {
+    // スレッドが復元されたらデータを再取得
+    window.location.reload();
+  };
+
   return (
     <div style={{ padding: '20px', maxWidth: '800px', margin: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
       <h1 style={{ textAlign: 'center', color: 'var(--text-primary)' }}>{thread.title}</h1>
       <p style={{ textAlign: 'center', fontSize: '0.9em', color: 'var(--text-tertiary)' }}>投稿数: {thread.post_count} / {MAX_POSTS}</p>
+      
+      {/* Thread Lifecycle Status */}
+      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+        <ThreadLifecycleManager
+          threadId={thread.id}
+          expiresAt={thread.expires_at}
+          isArchived={thread.is_archived}
+          restoreCount={thread.restore_count}
+          onRestore={handleThreadRestore}
+        />
+      </div>
 
       <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
         <h2 style={{ color: 'var(--text-secondary)' }}>投稿一覧</h2>
