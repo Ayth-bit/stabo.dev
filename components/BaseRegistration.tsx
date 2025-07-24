@@ -88,15 +88,27 @@ export function BaseRegistration({ userId, currentBase, onUpdate }: BaseRegistra
     setError(null);
 
     try {
+      console.log('拠点登録開始:', { userId, location, radius });
+      
       // まずユーザーが存在するかチェック
-      const { data: existingUser } = await supabase
+      const { data: existingUser, error: checkError } = await supabase
         .from('users_extended')
         .select('id')
         .eq('id', userId)
         .single();
 
-      if (!existingUser) {
+      console.log('既存ユーザーチェック結果:', { existingUser, checkError });
+
+      if (checkError && checkError.code === '42P01') {
+        // テーブルが存在しない場合
+        console.error('users_extended テーブルが存在しません。データベースマイグレーションが必要です。');
+        setError('データベースの設定に問題があります。管理者にマイグレーションの適用をお問い合わせください。');
+        return;
+      }
+
+      if (!existingUser || (checkError as unknown as {code?: string})?.code === 'PGRST116') {
         // ユーザーが存在しない場合、まず作成
+        console.log('新規ユーザー作成中...');
         const { error: insertError } = await supabase.from('users_extended').insert({
           id: userId,
           display_name: 'ユーザー',
@@ -104,15 +116,19 @@ export function BaseRegistration({ userId, currentBase, onUpdate }: BaseRegistra
           home_base_lat: location.lat,
           home_base_lng: location.lng,
           base_radius: radius,
+          points: 100,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });
 
         if (insertError) {
+          console.error('ユーザー作成エラー:', insertError);
           throw insertError;
         }
+        console.log('新規ユーザー作成完了');
       } else {
         // ユーザーが存在する場合、更新
+        console.log('既存ユーザー更新中...');
         const { error: updateError } = await supabase
           .from('users_extended')
           .update({
@@ -124,8 +140,10 @@ export function BaseRegistration({ userId, currentBase, onUpdate }: BaseRegistra
           .eq('id', userId);
 
         if (updateError) {
+          console.error('ユーザー更新エラー:', updateError);
           throw updateError;
         }
+        console.log('既存ユーザー更新完了');
       }
 
       onUpdate();

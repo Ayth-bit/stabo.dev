@@ -54,7 +54,7 @@ export function UserPosts({ userId, posts, onUpdate }: UserPostsProps) {
         .from('threads')
         .update({
           is_archived: false,
-          expires_at: newExpiresAt.toISOString(),
+          // expires_at: newExpiresAt.toISOString(), // Column not available yet
           restore_count: restoreCount + 1,
           restored_at: new Date().toISOString(),
         })
@@ -129,18 +129,18 @@ export function UserPosts({ userId, posts, onUpdate }: UserPostsProps) {
       return { text: '非表示', color: '#ffc107', bgColor: '#fff3cd' };
     }
 
-    if (post.expires_at) {
-      const expiresAt = new Date(post.expires_at);
-      const now = new Date();
-      if (expiresAt <= now) {
-        return { text: '期限切れ', color: '#dc3545', bgColor: '#f8d7da' };
-      }
-
-      const hoursLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60));
-      if (hoursLeft <= 24) {
-        return { text: `${hoursLeft}時間後に非表示`, color: '#fd7e14', bgColor: '#fff3cd' };
-      }
-    }
+    // Temporary: expires_at column not available
+    // if (post.expires_at) {
+    //   const expiresAt = new Date(post.expires_at);
+    //   const now = new Date();
+    //   if (expiresAt <= now) {
+    //     return { text: '期限切れ', color: '#dc3545', bgColor: '#f8d7da' };
+    //   }
+    //   const hoursLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60));
+    //   if (hoursLeft <= 24) {
+    //     return { text: `${hoursLeft}時間後に非表示`, color: '#fd7e14', bgColor: '#fff3cd' };
+    //   }
+    // }
 
     return { text: '表示中', color: '#28a745', bgColor: '#d4edda' };
   };
@@ -239,11 +239,12 @@ export function UserPosts({ userId, posts, onUpdate }: UserPostsProps) {
                         <span className="text-gray-600 text-sm">
                           投稿日時: {formatDate(post.created_at)}
                         </span>
-                        {post.expires_at && (
+                        {/* Temporary: expires_at column not available */}
+                        {/* {post.expires_at && (
                           <span className="text-gray-600 text-sm font-medium">
                             期限: {formatDate(post.expires_at)}
                           </span>
-                        )}
+                        )} */}
                       </div>
                     </div>
                   );

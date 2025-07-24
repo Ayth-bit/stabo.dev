@@ -25,10 +25,10 @@ export function Navigation() {
         </Link>
 
         {/* Navigation Links */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6">
           <Link 
             href="/boards" 
-            className="text-secondary hover:text-primary hover:bg-gray-50 px-4 py-2 rounded-lg transition-all duration-200"
+            className="text-secondary hover:text-primary hover:bg-gray-50 px-6 py-3 rounded-lg transition-all duration-200 font-medium"
           >
             掲示板一覧
           </Link>
@@ -63,16 +63,16 @@ export function Navigation() {
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-2 md:flex-col md:gap-1">
+            <div className="flex items-center gap-4 md:flex-col md:gap-2">
               <Link 
                 href="/auth/login" 
-                className="text-secondary hover:text-primary hover:bg-gray-50 px-4 py-2 rounded-lg transition-all duration-200 md:px-3 md:py-1.5 md:text-sm"
+                className="text-secondary hover:text-primary hover:bg-gray-50 px-6 py-3 rounded-lg transition-all duration-200 font-medium md:px-4 md:py-2 md:text-sm"
               >
                 ログイン
               </Link>
               <Link 
                 href="/auth/register" 
-                className="btn-primary text-sm no-underline md:px-3 md:py-1.5"
+                className="btn-primary text-sm no-underline px-6 py-3 md:px-4 md:py-2"
               >
                 新規登録
               </Link>

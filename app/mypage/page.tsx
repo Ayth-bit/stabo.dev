@@ -126,9 +126,10 @@ export default function MyPage() {
           }
         } else if (error.code === '42P01' || error.message?.includes('does not exist')) {
           console.warn(
-            'users_extended table does not exist - this feature requires database setup'
+            'users_extended table does not exist - creating basic user profile'
           );
-          // テーブルが存在しない場合、ベーシックなユーザー情報でフォールバック
+          // テーブルが存在しない場合の対応
+          console.log('Attempting to handle missing table by creating basic user profile');
           setUserExtended({
             id: user.id,
             display_name: user.user_metadata?.display_name || user.email || 'ユーザー',
@@ -243,7 +244,7 @@ export default function MyPage() {
       console.log('threads table exists, now filtering by user_id');
       const { data: userPosts, error: userError } = await supabase
         .from('threads')
-        .select('id, content, created_at, board_id, is_archived, expires_at, restore_count')
+        .select('id, content, created_at, board_id, is_archived, restore_count')
         .eq('author_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
@@ -273,7 +274,6 @@ export default function MyPage() {
             created_at,
             board_id,
             is_archived,
-            expires_at,
             restore_count,
             boards (
               name
@@ -441,7 +441,7 @@ export default function MyPage() {
 
         .mypage-header {
           background: rgb(var(--card-bg-rgb));
-          border-radius: 12px;
+          border-radius: var(--border-radius-md);
           padding: 2rem;
           margin-bottom: 2rem;
           border: 1px solid var(--border-color);
@@ -468,7 +468,7 @@ export default function MyPage() {
         .tab-nav {
           display: flex;
           background: rgb(var(--card-bg-rgb));
-          border-radius: 12px;
+          border-radius: var(--border-radius-md);
           padding: 0.5rem;
           margin-bottom: 2rem;
           border: 1px solid var(--border-color);
@@ -481,7 +481,7 @@ export default function MyPage() {
           border: none;
           background: transparent;
           color: var(--text-secondary);
-          border-radius: 8px;
+          border-radius: var(--border-radius);
           cursor: pointer;
           font-weight: 500;
           transition: all 0.2s;
@@ -499,7 +499,7 @@ export default function MyPage() {
 
         .tab-content {
           background: rgb(var(--card-bg-rgb));
-          border-radius: 12px;
+          border-radius: var(--border-radius-md);
           padding: 2rem;
           border: 1px solid var(--border-color);
         }

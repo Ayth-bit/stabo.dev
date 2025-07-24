@@ -2,7 +2,9 @@
 
 import type { Board, BoardThread, Chat, User } from '@/app/types/domain';
 import dynamic from 'next/dynamic';
-import * as React from 'react';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 
 // Mapboxコンポーネントを動的インポート（SSR回避）
 const AdminMapView = dynamic(() => import('@/components/AdminMapView'), {
@@ -30,19 +32,17 @@ interface MapFilters {
 }
 
 export default function AdminPage() {
-  const [mapData, setMapData] = React.useState<MapData>({
+  const router = useRouter();
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [mapData, setMapData] = useState<MapData>({
     boards: [],
     threads: [],
     users: [],
     chats: [],
   });
 
-  // const [adminSetupStatus, setAdminSetupStatus] = useState<{
-  //   exists: boolean;
-  //   hasProfile: boolean;
-  // } | null>(null);
-
-  const [filters, setFilters] = React.useState<MapFilters>({
+  const [filters, setFilters] = useState<MapFilters>({
     showBoards: true,
     showThreads: true,
     showUsers: false,
@@ -54,10 +54,45 @@ export default function AdminPage() {
     },
   });
 
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchMapData = React.useCallback(async () => {
+  // 管理者認証チェック
+  useEffect(() => {
+    const checkAdminAccess = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          router.push('/auth/login');
+          return;
+        }
+
+        // 管理者権限をチェック
+        const { data: userExtended } = await supabase
+          .from('users_extended')
+          .select('is_admin, is_creator')
+          .eq('id', user.id)
+          .single();
+
+        if (!userExtended || (!userExtended.is_admin && !userExtended.is_creator)) {
+          router.push('/');
+          return;
+        }
+
+        setIsAdmin(true);
+      } catch (error) {
+        console.error('Admin access check failed:', error);
+        router.push('/');
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    checkAdminAccess();
+  }, [router]);
+
+  const fetchMapData = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -84,7 +119,7 @@ export default function AdminPage() {
     }
   }, [filters]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchMapData();
   }, [fetchMapData]);
 
@@ -96,6 +131,34 @@ export default function AdminPage() {
     return (
       <div className="h-screen flex flex-col">
         <div className="flex justify-center items-center h-full text-xl">データを読み込み中...</div>
+      </div>
+    );
+  }
+
+  if (authLoading) {
+    return (
+      <div className="h-screen flex justify-center items-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">管理者権限を確認中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="h-screen flex justify-center items-center">
+        <div className="text-center">
+          <p className="text-red-600 text-xl mb-4">アクセス権限がありません</p>
+          <button 
+            type="button"
+            onClick={() => router.push('/')}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            ホームに戻る
+          </button>
+        </div>
       </div>
     );
   }

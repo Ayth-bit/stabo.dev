@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
       id: userData.user.id,
       display_name: 'Administrator',
       is_creator: true,
+      is_admin: true,
       qr_code: `admin_qr_${userData.user.id.slice(0, 8)}`,
       points: 1000,
       notification_enabled: true,

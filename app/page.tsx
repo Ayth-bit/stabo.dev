@@ -60,13 +60,14 @@ const UniqueThreadsList = ({ threads }: { threads: ThreadInfo[] }) => {
   if (threads.length === 0) return null;
 
   return (
-    <div className="mt-8 border-t-2 border-accent pt-5">
-      <h2 className="text-center text-primary text-xl font-bold mb-4">注目のユニークスレッド</h2>
-      <ul className="list-none p-0 space-y-4">
+    <div className="mt-10 border-t-2 border-accent pt-8">
+      <h2 className="text-center text-primary text-xl font-bold mb-6">注目のユニークスレッド</h2>
+      <ul className="list-none p-0 space-y-6">
         {threads.map((thread) => (
           <li
             key={thread.id}
-            className="card p-4 cursor-pointer hover:shadow-lg transition-shadow duration-200"
+            className="card p-6 cursor-pointer hover:shadow-lg transition-shadow duration-200"
+            style={{ borderRadius: 'var(--border-radius-md)' }}
             onClick={() => router.push(`/thread/${thread.id}`)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -75,10 +76,8 @@ const UniqueThreadsList = ({ threads }: { threads: ThreadInfo[] }) => {
               }
             }}
           >
-            <p className="font-bold m-0 text-blue-600 mb-2">{thread.title}</p>
-            <p className="text-sm text-tertiary m-0">
-              投稿数: {thread.post_count}
-            </p>
+            <p className="font-bold m-0 text-blue-600 mb-3 text-lg">{thread.title}</p>
+            <p className="text-sm text-tertiary m-0">投稿数: {thread.post_count}</p>
           </li>
         ))}
       </ul>
@@ -91,13 +90,16 @@ const ReadOnlyThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
   if (threads.length === 0) return null;
 
   return (
-    <div className="mt-8 border-t-2 border-yellow-400 pt-5">
-      <h2 className="text-center text-orange-600 text-xl font-bold mb-4">近くの読み取り専用スレッド</h2>
-      <ul className="list-none p-0 space-y-4">
+    <div className="mt-10 border-t-2 border-yellow-400 pt-8">
+      <h2 className="text-center text-orange-600 text-xl font-bold mb-6">
+        近くの読み取り専用スレッド
+      </h2>
+      <ul className="list-none p-0 space-y-6">
         {threads.map((thread) => (
           <li
             key={thread.id}
-            className="card p-4 cursor-pointer hover:bg-gray-50 focus:bg-gray-50 transition-colors duration-200"
+            className="card p-6 cursor-pointer hover:bg-gray-50 focus:bg-gray-50 transition-colors duration-200"
+            style={{ borderRadius: 'var(--border-radius-md)' }}
             onClick={() => router.push(`/thread/${thread.id}`)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -105,9 +107,8 @@ const ReadOnlyThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
                 router.push(`/thread/${thread.id}`);
               }
             }}
-            tabIndex={0}
           >
-            <p className="font-bold m-0 mb-2">{thread.title}</p>
+            <p className="font-bold m-0 mb-3 text-lg">{thread.title}</p>
             <p className="text-sm text-tertiary m-0">
               投稿数: {thread.post_count} | 距離: {thread.distance.toFixed(2)} km
             </p>
@@ -144,7 +145,7 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
 
   React.useEffect(() => {
     let isMounted = true;
-    
+
     console.log('DistantThreadsList useEffect triggered');
     console.log('Threads data:', threads);
     console.log('Number of threads:', threads.length);
@@ -158,14 +159,16 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
     } else {
       console.log('Loading Google Maps API...');
       // Google Maps APIを動的に読み込み（重複チェック付き）
-      loadGoogleMapsAPI().then(() => {
-        console.log('Google Maps API loaded successfully');
-        if (isMounted) {
-          initializeMap();
-        }
-      }).catch(error => {
-        console.error('Failed to load Google Maps API:', error);
-      });
+      loadGoogleMapsAPI()
+        .then(() => {
+          console.log('Google Maps API loaded successfully');
+          if (isMounted) {
+            initializeMap();
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to load Google Maps API:', error);
+        });
     }
 
     function loadGoogleMapsAPI() {
@@ -272,9 +275,14 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
             const pinElement = new googleMaps.marker.PinElement({
               glyph: markerInfo.label.toString(),
               scale: 1.2,
-              background: markerInfo.color === 'red' ? '#EA4335' : 
-                         markerInfo.color === 'blue' ? '#4285F4' : 
-                         markerInfo.color === 'green' ? '#34A853' : '#FBBC04',
+              background:
+                markerInfo.color === 'red'
+                  ? '#EA4335'
+                  : markerInfo.color === 'blue'
+                    ? '#4285F4'
+                    : markerInfo.color === 'green'
+                      ? '#34A853'
+                      : '#FBBC04',
               borderColor: '#FFFFFF',
               glyphColor: '#FFFFFF',
             });
@@ -294,8 +302,13 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
         }
 
         // フォールバック: 従来のMarkerを使用
-        if (!marker && (googleMaps as unknown as { Marker?: new (options: unknown) => unknown }).Marker) {
-          marker = new ((googleMaps as unknown as { Marker: new (options: unknown) => unknown }).Marker)({
+        if (
+          !marker &&
+          (googleMaps as unknown as { Marker?: new (options: unknown) => unknown }).Marker
+        ) {
+          marker = new (
+            googleMaps as unknown as { Marker: new (options: unknown) => unknown }
+          ).Marker({
             position: { lat: markerInfo.lat, lng: markerInfo.lng },
             map: map,
             title: markerInfo.title,
@@ -333,7 +346,8 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
         });
 
         // 位置情報を境界に追加
-        const position = marker.position || marker.getPosition?.() || { lat: markerInfo.lat, lng: markerInfo.lng };
+        const position = marker.position ||
+          marker.getPosition?.() || { lat: markerInfo.lat, lng: markerInfo.lng };
         bounds.extend(position);
       }
 
@@ -363,12 +377,13 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
   }
 
   return (
-    <div className="mt-8 border-t border-gray-200 pt-5">
-      <h2 className="text-center text-secondary text-xl font-bold mb-5">
-        遠くのスレッド (マップで表示)
-      </h2>
+    <div className="mt-10 border-t border-gray-200 pt-8">
+      <h2 className="text-center text-secondary text-xl font-bold mb-6">遠くのスレッド</h2>
 
-      <div className="border border-gray-300 rounded-lg overflow-hidden mb-5 shadow-md">
+      <div
+        className="border border-gray-300 overflow-hidden mb-5 shadow-md"
+        style={{ borderRadius: 'var(--border-radius-md)' }}
+      >
         <div
           id={mapContainerIdRef.current}
           style={{
@@ -385,27 +400,24 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
           }}
         >
           <div>地図を読み込み中...</div>
-          <div className="text-xs text-gray-400">
-            マップID: {mapContainerIdRef.current}
-          </div>
+          <div className="text-xs text-gray-400">マップID: {mapContainerIdRef.current}</div>
           {threads.length > 0 && (
-            <div className="text-xs text-gray-400">
-              {threads.length}件のスレッド
-            </div>
+            <div className="text-xs text-gray-400">{threads.length}件のスレッド</div>
           )}
         </div>
       </div>
 
       {/* スレッド一覧（地図の下に簡潔に表示） */}
-      <div className="bg-gray-50 p-4 rounded-lg">
-        <h3 className="m-0 mb-4 text-base text-primary font-semibold">
+      <div className="bg-gray-50 p-6" style={{ borderRadius: 'var(--border-radius-md)' }}>
+        <h3 className="m-0 mb-6 text-lg text-primary font-semibold">
           スレッド一覧 ({threads.length}件)
         </h3>
-        <div className="grid gap-2">
+        <div className="grid gap-4">
           {threads.slice(0, 5).map((thread, index) => (
             <div
               key={thread.id}
-              className="flex justify-between items-center p-3 bg-white rounded border border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors duration-200"
+              className="flex justify-between items-center py-5 px-4 bg-white border border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors duration-200"
+              style={{ borderRadius: 'var(--border-radius)' }}
               onClick={() => {
                 const mapUrl = `https://www.google.com/maps?q=${thread.latitude},${thread.longitude}&z=15`;
                 try {
@@ -431,29 +443,27 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
                   }
                 }
               }}
-              tabIndex={0}
             >
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
                   {index + 1}
                 </div>
                 <div className="flex-1">
-                  <div className="font-semibold text-sm text-primary">
-                    {thread.title}
-                  </div>
-                  <div className="text-xs text-tertiary mt-0.5">
+                  <div className="font-semibold text-base text-primary">{thread.title}</div>
+                  <div className="text-sm text-tertiary mt-1">
                     投稿数: {thread.post_count} | 座標: {thread.latitude.toFixed(4)},{' '}
                     {thread.longitude.toFixed(4)}
                   </div>
                 </div>
               </div>
-              <div className="flex flex-col items-end gap-1">
-                <div className="text-xs text-tertiary">
+              <div className="flex flex-col items-end gap-2">
+                <div className="text-sm text-tertiary font-medium">
                   {thread.distance.toFixed(1)}km
                 </div>
                 <button
                   type="button"
-                  className="text-xs px-1.5 py-0.5 bg-blue-600 text-white border-none rounded cursor-pointer hover:bg-blue-700 transition-colors"
+                  className="text-sm px-3 py-1 bg-blue-600 text-white border-none cursor-pointer hover:bg-blue-700 transition-colors"
+                  style={{ borderRadius: 'var(--border-radius-sm)' }}
                   onClick={(e) => {
                     e.stopPropagation();
                     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${thread.latitude},${thread.longitude}`;
@@ -583,7 +593,10 @@ const HomePage = () => {
             console.warn('CoreLocation error detected on macOS');
 
             // 開発用フォールバック: 東京駅の座標を使用（より確実に）
-            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            if (
+              window.location.hostname === 'localhost' ||
+              window.location.hostname === '127.0.0.1'
+            ) {
               console.warn('Development fallback: Using Tokyo Station coordinates (auto-fallback)');
               setLocation({
                 latitude: 35.6812,
@@ -620,7 +633,7 @@ const HomePage = () => {
         maxWidth: '800px',
         margin: 'auto',
         border: '1px solid #eee',
-        borderRadius: '8px',
+        borderRadius: 'var(--border-radius-md)',
         boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
         backgroundColor: '#fff',
         color: '#333',
@@ -669,7 +682,7 @@ const HomePage = () => {
                     backgroundColor: '#28a745',
                     color: 'white',
                     border: 'none',
-                    borderRadius: '5px',
+                    borderRadius: 'var(--border-radius)',
                     cursor: 'pointer',
                     marginRight: '10px',
                   }}
@@ -686,7 +699,7 @@ const HomePage = () => {
                     backgroundColor: '#007bff',
                     color: 'white',
                     border: 'none',
-                    borderRadius: '5px',
+                    borderRadius: 'var(--border-radius)',
                     cursor: 'pointer',
                   }}
                 >
@@ -735,29 +748,6 @@ const HomePage = () => {
             </>
           )}
 
-          {/* デバッグ情報 */}
-          <div style={{ 
-            marginTop: '20px', 
-            padding: '10px', 
-            backgroundColor: '#f0f0f0', 
-            borderRadius: '5px',
-            fontSize: '12px',
-            color: '#666'
-          }}>
-            <h4 style={{ margin: '0 0 10px 0' }}>デバッグ情報:</h4>
-            <p>ユニークスレッド: {uniqueThreads.length}件</p>
-            <p>読み取り専用スレッド: {readOnlyThreads.length}件</p>
-            <p>遠くのスレッド: {distantThreads.length}件</p>
-            {distantThreads.length > 0 && (
-              <details>
-                <summary>遠くのスレッド詳細</summary>
-                <pre style={{ fontSize: '10px', overflow: 'auto' }}>
-                  {JSON.stringify(distantThreads, null, 2)}
-                </pre>
-              </details>
-            )}
-          </div>
-
           <UniqueThreadsList threads={uniqueThreads} />
           <ReadOnlyThreadsList threads={readOnlyThreads} />
           <DistantThreadsList threads={distantThreads} />
@@ -789,7 +779,7 @@ const HomePage = () => {
                 color: '#666',
                 backgroundColor: 'transparent',
                 border: '1px solid #ddd',
-                borderRadius: '4px',
+                borderRadius: 'var(--border-radius-sm)',
                 cursor: 'pointer',
                 marginRight: '10px',
               }}
@@ -805,7 +795,7 @@ const HomePage = () => {
                 color: '#666',
                 backgroundColor: 'transparent',
                 border: '1px solid #ddd',
-                borderRadius: '4px',
+                borderRadius: 'var(--border-radius-sm)',
                 cursor: 'pointer',
               }}
             >

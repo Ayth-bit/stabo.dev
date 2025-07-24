@@ -88,12 +88,57 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
 
     const checkAccessAndFetchData = async () => {
       try {
-        const { data: threadData, error: threadError } = await supabase
+        // Validate UUID format
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(threadId)) {
+          throw new Error('無効なスレッドIDです。');
+        }
+
+        // First try to get the thread without RLS restrictions for archived threads
+        let { data: threadData, error: threadError } = await supabase
           .from('threads')
-          .select('*, is_global, expires_at, is_archived, restore_count')
+          .select('*, is_global, is_archived, restore_count')
           .eq('id', threadId)
           .single();
-        if (threadError || !threadData) throw new Error('スレッドが見つかりません。');
+        
+        // If thread not found due to RLS (archived), try with a different approach
+        if (threadError && threadError.code === 'PGRST116') {
+          console.log('Thread may be archived, trying alternative query');
+          // Try to get thread data regardless of archive status using a more permissive query
+          const { data: allThreadsData, error: allThreadsError } = await supabase
+            .from('threads')
+            .select('*, is_global, is_archived, restore_count')
+            .eq('id', threadId);
+          
+          if (allThreadsData && allThreadsData.length > 0) {
+            threadData = allThreadsData[0];
+            threadError = null;
+          } else {
+            threadError = allThreadsError;
+          }
+        }
+        
+        if (threadError) {
+          console.error('Thread query error:', {
+            code: threadError.code,
+            message: threadError.message,
+            details: threadError.details,
+            hint: threadError.hint,
+            fullError: threadError
+          });
+          
+          if (threadError.code === 'PGRST116' || threadError.message?.includes('No rows found')) {
+            throw new Error('スレッドが見つかりません。削除されている可能性があります。');
+          }
+          
+          if (threadError.code === '42501' || threadError.message?.includes('permission denied')) {
+            throw new Error('このスレッドにアクセスする権限がありません。');
+          }
+          
+          throw new Error(`スレッドの取得に失敗しました: ${threadError.message || 'Unknown error'}`);
+        }
+        
+        if (!threadData) throw new Error('スレッドが見つかりません。');
         setThread(threadData);
 
         const fetchPosts = async () => {

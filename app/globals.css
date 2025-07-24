@@ -33,6 +33,12 @@
   --error-color: rgb(239, 68, 68);
   --warning-color: rgb(245, 158, 11);
   --info-color: rgb(59, 130, 246);
+  
+  /* 統一border-radius */
+  --border-radius-sm: 0.375rem;   /* 6px */
+  --border-radius: 0.5rem;        /* 8px */
+  --border-radius-md: 0.75rem;    /* 12px */
+  --border-radius-lg: 1rem;       /* 16px */
 }
 
 /* --------------------------------
@@ -133,7 +139,7 @@
     color: white;
     font-weight: 600;
     padding: 0.75rem 1.5rem;
-    border-radius: 0.5rem;
+    border-radius: var(--border-radius);
     transition: all 0.2s;
   }
   
@@ -156,7 +162,7 @@
     color: rgb(31, 41, 55);
     font-weight: 600;
     padding: 0.75rem 1.5rem;
-    border-radius: 0.5rem;
+    border-radius: var(--border-radius);
     border: 1px solid rgb(209, 213, 219);
     transition: all 0.2s;
   }
@@ -178,7 +184,7 @@
     background-color: transparent;
     font-weight: 600;
     padding: 0.75rem 1.5rem;
-    border-radius: 0.5rem;
+    border-radius: var(--border-radius);
     transition: all 0.2s;
   }
   
@@ -191,7 +197,7 @@
   /* カードスタイル */
   .card {
     background-color: white;
-    border-radius: 0.75rem;
+    border-radius: var(--border-radius-md);
     border: 1px solid rgb(229, 231, 235);
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   }
@@ -201,7 +207,7 @@
     width: 100%;
     padding: 0.75rem 1rem;
     border: 1px solid rgb(209, 213, 219);
-    border-radius: 0.5rem;
+    border-radius: var(--border-radius);
     background-color: rgb(249, 250, 251);
     color: rgb(31, 41, 55);
     transition: all 0.2s;

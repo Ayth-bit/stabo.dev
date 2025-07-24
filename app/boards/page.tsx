@@ -158,7 +158,7 @@ export default function BoardsPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex justify-center items-center bg-gray-50">
-        <div className="text-center card p-8">
+        <div className="text-center card p-8" style={{ borderRadius: 'var(--border-radius-md)' }}>
           <div className="w-12 h-12 border-4 border-gray-300 border-t-accent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-secondary">位置情報を取得中...</p>
         </div>
@@ -169,7 +169,7 @@ export default function BoardsPage() {
   if (locationError) {
     return (
       <div className="min-h-screen flex justify-center items-center bg-gray-50">
-        <div className="card p-8 max-w-md">
+        <div className="card p-8 max-w-md" style={{ borderRadius: 'var(--border-radius-md)' }}>
           <div className="message-error mb-6">
             <h2 className="text-xl font-bold mb-2">位置情報エラー</h2>
             <p>{locationError}</p>
@@ -219,59 +219,64 @@ export default function BoardsPage() {
         </header>
 
         <nav className="mb-8">
-          <div className="card p-6">
-            <div className="flex gap-3 flex-wrap justify-center">
+          <div className="card p-6" style={{ borderRadius: 'var(--border-radius-md)' }}>
+            <div className="flex gap-4 flex-wrap justify-center">
               <button
                 type="button"
-                className={`px-4 py-2 text-sm font-medium transition-all duration-200 min-w-[120px] rounded-lg ${
+                className={`px-5 py-3 text-sm font-medium transition-all duration-200 min-w-[120px] ${
                   filter === 'accessible'
                     ? 'bg-accent text-white shadow-md'
                     : 'btn-secondary'
                 }`}
+                style={{ borderRadius: 'var(--border-radius)' }}
                 onClick={() => setFilter('accessible')}
               >
                 アクセス可能 ({allStats.accessible})
               </button>
               <button
                 type="button"
-                className={`px-4 py-2 text-sm font-medium transition-all duration-200 min-w-[100px] rounded-lg ${
+                className={`px-5 py-3 text-sm font-medium transition-all duration-200 min-w-[100px] ${
                   filter === 'station'
                     ? 'bg-accent text-white shadow-md'
                     : 'btn-secondary'
                 }`}
+                style={{ borderRadius: 'var(--border-radius)' }}
                 onClick={() => setFilter('station')}
               >
                 駅 ({allStats.station})
               </button>
               <button
                 type="button"
-                className={`px-4 py-2 text-sm font-medium transition-all duration-200 min-w-[100px] rounded-lg ${
+                className={`px-5 py-3 text-sm font-medium transition-all duration-200 min-w-[100px] ${
                   filter === 'ward'
                     ? 'bg-accent text-white shadow-md'
                     : 'btn-secondary'
                 }`}
+                style={{ borderRadius: 'var(--border-radius)' }}
                 onClick={() => setFilter('ward')}
               >
                 区 ({allStats.ward})
               </button>
               <button
                 type="button"
-                className={`px-4 py-2 text-sm font-medium transition-all duration-200 min-w-[100px] rounded-lg ${
+                className={`px-5 py-3 text-sm font-medium transition-all duration-200 min-w-[100px] ${
                   filter === 'park'
                     ? 'bg-accent text-white shadow-md'
                     : 'btn-secondary'
                 }`}
+                style={{ borderRadius: 'var(--border-radius)' }}
                 onClick={() => setFilter('park')}
               >
                 公園 ({allStats.park})
               </button>
               <button
                 type="button"
-                className={`px-4 py-2 text-sm font-medium transition-all duration-200 min-w-[100px] rounded-lg ${
+                className={`px-5 py-3 text-sm font-medium transition-all duration-200 min-w-[100px] ${
                   filter === 'all'
                     ? 'bg-accent text-white shadow-md'
                     : 'btn-secondary'
                 }`}
+                style={{ borderRadius: 'var(--border-radius)' }}
                 onClick={() => setFilter('all')}
               >
                 全て ({allStats.all})
@@ -282,7 +287,7 @@ export default function BoardsPage() {
 
         <div className="mt-8">
           {filteredBoards.length === 0 ? (
-            <div className="card p-12 text-center">
+            <div className="card p-12 text-center" style={{ borderRadius: 'var(--border-radius-md)' }}>
               <p className="text-secondary mb-2">条件に合致する掲示板がありません</p>
               {filter === 'accessible' && (
                 <p className="text-sm text-tertiary">
@@ -291,7 +296,7 @@ export default function BoardsPage() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredBoards.map((board) => {
                 const distance = (board as Board & { distance?: number }).distance || 0;
                 const accessible = isAccessible(board);
@@ -302,6 +307,7 @@ export default function BoardsPage() {
                     className={`card p-6 hover:-translate-y-1 hover:shadow-lg transition-all duration-200 ${
                       accessible ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-yellow-500 bg-yellow-50'
                     }`}
+                    style={{ borderRadius: 'var(--border-radius-md)' }}
                   >
                     <div className="flex items-center gap-4 mb-4">
                       <div className="text-2xl">{getBoardTypeIcon(board.type)}</div>
@@ -353,7 +359,8 @@ export default function BoardsPage() {
                           </button>
                           <Link
                             href={`/map/${board.id}`}
-                            className="flex-1 text-center text-sm no-underline bg-green-100 text-green-700 px-4 py-2 rounded-lg border border-green-300 hover:bg-green-200 transition-colors"
+                            className="flex-1 text-center text-sm no-underline bg-green-100 text-green-700 px-4 py-2 border border-green-300 hover:bg-green-200 transition-colors"
+                            style={{ borderRadius: 'var(--border-radius)' }}
                           >
                             地図で見る
                           </Link>

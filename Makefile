@@ -7,8 +7,8 @@ YELLOW := \033[1;33m
 RED := \033[0;31m
 NC := \033[0m # No Color
 
-# デフォルトのデータベース接続情報
-DB_URL := postgresql://postgres:postgres@127.0.0.1:54322/postgres
+# デフォルトのデータベース接続情報 (Production Supabase)
+DB_URL := postgresql://postgres:M2Hbll5kEuNckdTvWDgfJxhRhCGZ4C3ZOQu1E2Gz2LU@db.tjtgpwpkgezolvydfmwa.supabase.co:5432/postgres
 
 .PHONY: help db-* supabase-* dev-*
 
@@ -24,6 +24,11 @@ help:
 	@echo "  make db-threads        - スレッド一覧表示"
 	@echo "  make db-boards         - 掲示板一覧表示"
 	@echo "  make db-recent         - 最近のアクティビティ"
+	@echo "  make db-admin          - 管理者情報表示"
+	@echo "  make db-chats          - チャット一覧表示"
+	@echo "  make db-posts          - 投稿一覧表示"
+	@echo "  make db-query QUERY=\"SQL\" - カスタムクエリ実行"
+	@echo "  make db-describe TABLE=テーブル名 - テーブル構造表示"
 	@echo ""
 	@echo "$(YELLOW)🔧 Supabase操作:$(NC)"
 	@echo "  make supabase-status   - Supabaseローカル環境の状態"
@@ -79,6 +84,21 @@ db-recent:
 	@psql $(DB_URL) -c "SELECT title, author_name, created_at FROM threads ORDER BY created_at DESC LIMIT 5;"
 	@echo "$(YELLOW)最新ユーザー:$(NC)"
 	@psql $(DB_URL) -c "SELECT display_name, created_at FROM users_extended ORDER BY created_at DESC LIMIT 5;"
+
+# 管理者関連データ表示
+db-admin:
+	@echo "$(GREEN)管理者情報:$(NC)"
+	@psql $(DB_URL) -c "SELECT au.email, ue.display_name, ue.is_admin, ue.created_at FROM auth.users au LEFT JOIN users_extended ue ON au.id = ue.id WHERE ue.is_admin = true OR au.email = 'admin@example.com';"
+
+# チャット関連データ表示
+db-chats:
+	@echo "$(GREEN)チャット一覧:$(NC)"
+	@psql $(DB_URL) -c "SELECT c.id, u1.display_name as user1, u2.display_name as user2, c.last_message, c.last_message_at FROM chats c LEFT JOIN users_extended u1 ON c.user1_id = u1.id LEFT JOIN users_extended u2 ON c.user2_id = u2.id ORDER BY c.last_message_at DESC LIMIT 10;" || echo "$(YELLOW)chats テーブルが存在しません$(NC)"
+
+# 投稿詳細情報
+db-posts:
+	@echo "$(GREEN)投稿一覧 (with board info):$(NC)"
+	@psql $(DB_URL) -c "SELECT p.id, p.content, p.author_name, t.title as thread_title, b.name as board_name, p.created_at FROM posts p LEFT JOIN threads t ON p.thread_id = t.id LEFT JOIN boards b ON t.board_id = b.id ORDER BY p.created_at DESC LIMIT 10;" || echo "$(YELLOW)posts テーブルが存在しません$(NC)"
 
 # カスタムクエリ用のターゲット
 db-query:
