@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users_extended (
   home_base_name VARCHAR(100),
   home_base_lat DECIMAL(10, 8),
   home_base_lng DECIMAL(11, 8),
+  base_radius INTEGER DEFAULT 1000,
   notification_enabled BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
