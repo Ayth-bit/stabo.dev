@@ -6,10 +6,18 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "bolt:sync": "node scripts/sync-bolt.js sync",
-    "bolt:check": "node scripts/sync-bolt.js check",
-    "bolt:export": "node scripts/sync-bolt.js export"
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format .",
+    "format:fix": "biome format --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "db:shell": "psql postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+    "db:status": "psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -c \"SELECT current_database(), current_user, version();\"",
+    "db:tables": "psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -c \"\\dt\"",
+    "db:users": "psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -c \"SELECT id, display_name, created_at FROM users_extended ORDER BY created_at DESC LIMIT 10;\"",
+    "db:threads": "psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -c \"SELECT t.id, t.title, t.author_name, b.name as board_name, t.created_at FROM threads t LEFT JOIN boards b ON t.board_id = b.id ORDER BY t.created_at DESC LIMIT 10;\"",
+    "db:helpers": "./scripts/db-helpers.sh"
   },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.10.0",
@@ -23,6 +31,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
