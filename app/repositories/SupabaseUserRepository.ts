@@ -1,9 +1,9 @@
 // Supabase User Repository - ユーザー関連のデータアクセス実装
 // ====================================
 
-import { SupabaseClient } from '@supabase/supabase-js';
-import { User } from '@/app/types/domain';
-import { IUserRepository } from '@/app/repositories/interfaces';
+import type { IUserRepository } from '@/app/repositories/interfaces';
+import type { User } from '@/app/types/domain';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export class SupabaseUserRepository implements IUserRepository {
   constructor(private supabase: SupabaseClient) {}
@@ -35,16 +35,18 @@ export class SupabaseUserRepository implements IUserRepository {
   async create(user: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
     const { data, error } = await this.supabase
       .from('users_extended')
-      .insert([{
-        display_name: user.displayName,
-        avatar_url: user.avatarUrl,
-        base_lat: user.baseLat,
-        base_lng: user.baseLng,
-        base_radius: user.baseRadius,
-        is_creator: user.isCreator,
-        qr_code: user.qrCode,
-        points: user.points
-      }])
+      .insert([
+        {
+          display_name: user.displayName,
+          avatar_url: user.avatarUrl,
+          base_lat: user.baseLat,
+          base_lng: user.baseLng,
+          base_radius: user.baseRadius,
+          is_creator: user.isCreator,
+          qr_code: user.qrCode,
+          points: user.points,
+        },
+      ])
       .select()
       .single();
 
@@ -81,10 +83,7 @@ export class SupabaseUserRepository implements IUserRepository {
   }
 
   async updatePoints(id: string, points: number): Promise<void> {
-    const { error } = await this.supabase
-      .from('users_extended')
-      .update({ points })
-      .eq('id', id);
+    const { error } = await this.supabase.from('users_extended').update({ points }).eq('id', id);
 
     if (error) {
       throw new Error(`Failed to update points: ${error.message}`);
@@ -114,7 +113,7 @@ export class SupabaseUserRepository implements IUserRepository {
       isCreator: data.is_creator,
       qrCode: data.qr_code,
       points: data.points,
-      createdAt: new Date(data.created_at)
+      createdAt: new Date(data.created_at),
     };
   }
 }

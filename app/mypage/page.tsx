@@ -1,21 +1,21 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
+import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../components/AuthProvider';
 import { BaseRegistration } from '../../components/BaseRegistration';
-import { FriendsManager } from '../../components/FriendsManager';
 import { DirectMessages } from '../../components/DirectMessages';
+import { FriendsManager } from '../../components/FriendsManager';
 import { UserPosts } from '../../components/UserPosts';
-import Link from 'next/link';
 
-const supabase = createClientComponentClient();
 
 interface UserExtended {
   id: string;
   display_name: string;
   home_base_lat?: number;
   home_base_lng?: number;
+  base_radius?: number;
   points: number;
   qr_code: string;
 }
@@ -61,7 +61,7 @@ export default function MyPage() {
         .select('*')
         .eq('id', user.id)
         .single();
-      
+
       console.log('Query response - data:', data, 'error:', error);
 
       if (error) {
@@ -73,25 +73,23 @@ export default function MyPage() {
           hint: error.hint || 'No hint',
           code: error.code || 'No code',
           table: 'users_extended',
-          user_id: user.id
+          user_id: user.id,
         });
-        
+
         // エラーコードに応じた処理
         if (error.code === 'PGRST116') {
           console.log('User not found in users_extended, creating new user record');
-          
+
           // ユーザーが存在しない場合、新しいレコードを作成
           try {
-            const { error: insertError } = await supabase
-              .from('users_extended')
-              .insert({
-                id: user.id,
-                display_name: user.user_metadata?.display_name || user.email || 'ユーザー',
-                qr_code: `qr_${user.id.slice(0, 8)}_${Date.now()}`,
-                points: 100,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              });
+            const { error: insertError } = await supabase.from('users_extended').insert({
+              id: user.id,
+              display_name: user.user_metadata?.display_name || user.email || 'ユーザー',
+              qr_code: `qr_${user.id.slice(0, 8)}_${Date.now()}`,
+              points: 100,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
 
             if (insertError) {
               console.error('Failed to create user record:', insertError);
@@ -101,7 +99,7 @@ export default function MyPage() {
                 home_base_lat: undefined,
                 home_base_lng: undefined,
                 points: 0,
-                qr_code: `fallback_${user.id.slice(0, 8)}`
+                qr_code: `fallback_${user.id.slice(0, 8)}`,
               });
             } else {
               // 作成成功したら再度取得
@@ -110,7 +108,7 @@ export default function MyPage() {
                 .select('*')
                 .eq('id', user.id)
                 .single();
-              
+
               if (newData) {
                 setUserExtended(newData);
               }
@@ -123,11 +121,13 @@ export default function MyPage() {
               home_base_lat: undefined,
               home_base_lng: undefined,
               points: 0,
-              qr_code: `fallback_${user.id.slice(0, 8)}`
+              qr_code: `fallback_${user.id.slice(0, 8)}`,
             });
           }
         } else if (error.code === '42P01' || error.message?.includes('does not exist')) {
-          console.warn('users_extended table does not exist - this feature requires database setup');
+          console.warn(
+            'users_extended table does not exist - this feature requires database setup'
+          );
           // テーブルが存在しない場合、ベーシックなユーザー情報でフォールバック
           setUserExtended({
             id: user.id,
@@ -135,7 +135,7 @@ export default function MyPage() {
             home_base_lat: undefined,
             home_base_lng: undefined,
             points: 0,
-            qr_code: `fallback_${user.id.slice(0, 8)}`
+            qr_code: `fallback_${user.id.slice(0, 8)}`,
           });
         } else {
           console.error('Unknown database error occurred');
@@ -174,7 +174,7 @@ export default function MyPage() {
           hint: error.hint || 'No hint',
           code: error.code || 'No code',
           table: 'connections',
-          user_id: user.id
+          user_id: user.id,
         });
         setConnections([]);
         return;
@@ -189,14 +189,14 @@ export default function MyPage() {
             .select('display_name')
             .eq('id', conn.connected_user_id)
             .single();
-          
+
           formattedConnections.push({
             id: conn.id,
             connected_user_id: conn.connected_user_id,
             created_at: conn.created_at,
             connected_user: {
-              display_name: userData?.display_name || '未設定'
-            }
+              display_name: userData?.display_name || '未設定',
+            },
           });
         }
       }
@@ -213,7 +213,7 @@ export default function MyPage() {
     try {
       // テーブル構造を確認してからクエリを実行
       console.log('Attempting to fetch user posts for user:', user.id);
-      
+
       // まずはthreadsテーブルの存在を確認
       const { error } = await supabase
         .from('threads')
@@ -223,42 +223,46 @@ export default function MyPage() {
       if (error) {
         console.error('Error checking threads table:');
         console.error('Full error object:', JSON.stringify(error, null, 2));
-        
+
         // テーブルが存在しない、またはuser_idカラムがない場合
-        if (error.code === 'PGRST106' || error.code === '42703' || error.message.includes('does not exist')) {
+        if (
+          error.code === 'PGRST106' ||
+          error.code === '42703' ||
+          error.message.includes('does not exist')
+        ) {
           console.warn('threads table or user_id column issue, setting empty posts');
           setUserPosts([]);
           return;
         }
-        
+
         setUserPosts([]);
         return;
       }
-      
+
       // テーブルが存在する場合、user_idでフィルタリングを試す
       console.log('threads table exists, now filtering by user_id');
       const { data: userPosts, error: userError } = await supabase
         .from('threads')
-        .select('id, content, created_at, board_id, is_archived, expires_at')
-        .eq('user_id', user.id)
+        .select('id, content, created_at, board_id, is_archived, expires_at, restore_count')
+        .eq('author_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
-      
+
       if (userError) {
         console.error('Error fetching user-specific posts:');
         console.error('User error object:', JSON.stringify(userError, null, 2));
-        
+
         if (userError.code === '42703') {
           console.warn('user_id column does not exist in threads table');
           // user_idカラムがない場合は空の結果を返す
           setUserPosts([]);
           return;
         }
-        
+
         setUserPosts([]);
         return;
       }
-      
+
       // データが取得できた場合、boardsとのJOINを試す
       if (userPosts && userPosts.length > 0) {
         const { data: postsWithBoards, error: joinError } = await supabase
@@ -270,21 +274,22 @@ export default function MyPage() {
             board_id,
             is_archived,
             expires_at,
+            restore_count,
             boards (
               name
             )
           `)
-          .eq('user_id', user.id)
+          .eq('author_id', user.id)
           .order('created_at', { ascending: false });
 
         if (joinError) {
           console.warn('Error joining with boards table:');
           console.warn('Join error details:', JSON.stringify(joinError, null, 2));
           // boardsテーブルとのJOINに失敗した場合、boards情報なしで表示
-          const postsWithoutBoards = userPosts.map(post => ({
+          const postsWithoutBoards = userPosts.map((post) => ({
             ...post,
             boards: { name: '不明な掲示板' },
-            is_archived: post.is_archived || false
+            is_archived: post.is_archived || false,
           }));
           setUserPosts(postsWithoutBoards);
         } else {
@@ -339,25 +344,29 @@ export default function MyPage() {
         </header>
 
         <nav className="tab-nav">
-          <button 
+          <button
+            type="button"
             className={`tab-button ${activeTab === 'base' ? 'active' : ''}`}
             onClick={() => setActiveTab('base')}
           >
             拠点設定
           </button>
-          <button 
+          <button
+            type="button"
             className={`tab-button ${activeTab === 'friends' ? 'active' : ''}`}
             onClick={() => setActiveTab('friends')}
           >
             友達 ({connections.length})
           </button>
-          <button 
+          <button
+            type="button"
             className={`tab-button ${activeTab === 'dm' ? 'active' : ''}`}
             onClick={() => setActiveTab('dm')}
           >
             メッセージ
           </button>
-          <button 
+          <button
+            type="button"
             className={`tab-button ${activeTab === 'posts' ? 'active' : ''}`}
             onClick={() => setActiveTab('posts')}
           >
@@ -378,7 +387,7 @@ export default function MyPage() {
                       ? {
                           lat: userExtended.home_base_lat,
                           lng: userExtended.home_base_lng,
-                          radius: 1000,
+                          radius: userExtended.base_radius || 1000,
                         }
                       : undefined
                   }
@@ -405,25 +414,14 @@ export default function MyPage() {
           {activeTab === 'dm' && (
             <div className="dm-section">
               <h3>ダイレクトメッセージ</h3>
-              {user && (
-                <DirectMessages
-                  userId={user.id}
-                  connections={connections}
-                />
-              )}
+              {user && <DirectMessages userId={user.id} connections={connections} />}
             </div>
           )}
 
           {activeTab === 'posts' && (
             <div className="posts-section">
               <h3>投稿履歴</h3>
-              {user && (
-                <UserPosts
-                  userId={user.id}
-                  posts={userPosts}
-                  onUpdate={fetchUserPosts}
-                />
-              )}
+              {user && <UserPosts userId={user.id} posts={userPosts} onUpdate={fetchUserPosts} />}
             </div>
           )}
         </main>

@@ -1,19 +1,19 @@
 // Repository Interfaces - データアクセス層の抽象化
 // ====================================
 
-import {
-  User,
-  Connection,
-  Sticker,
+import type {
   Board,
   BoardThread,
+  BoardType,
   Chat,
   ChatMessage,
-  Notification,
+  Connection,
   GachaResult,
   Location,
-  BoardType,
-  StickerRarity
+  Notification,
+  Sticker,
+  StickerRarity,
+  User,
 } from '@/app/types/domain';
 
 export interface IUserRepository {
@@ -57,7 +57,9 @@ export interface IBoardThreadRepository {
   findById(id: string): Promise<BoardThread | null>;
   findByUserId(userId: string): Promise<BoardThread[]>;
   findExpired(): Promise<BoardThread[]>;
-  create(thread: Omit<BoardThread, 'id' | 'createdAt' | 'viewCount' | 'likeCount'>): Promise<BoardThread>;
+  create(
+    thread: Omit<BoardThread, 'id' | 'createdAt' | 'viewCount' | 'likeCount'>
+  ): Promise<BoardThread>;
   update(id: string, thread: Partial<BoardThread>): Promise<BoardThread>;
   incrementViewCount(id: string): Promise<void>;
   incrementLikeCount(id: string): Promise<void>;

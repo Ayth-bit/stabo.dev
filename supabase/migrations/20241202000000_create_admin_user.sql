@@ -1,26 +1,6 @@
 -- Create admin user migration
--- This migration creates a placeholder record for the admin user in users_extended
-
--- Insert admin user placeholder (will be linked when admin@example.com signs up)
-INSERT INTO users_extended (
-  id,
-  display_name,
-  is_creator,
-  qr_code,
-  points,
-  notification_enabled,
-  created_at,
-  updated_at
-) VALUES (
-  '00000000-0000-0000-0000-000000000001', -- Placeholder UUID for admin
-  'Administrator',
-  TRUE,
-  'admin_qr_code_placeholder',
-  1000,
-  TRUE,
-  NOW(),
-  NOW()
-) ON CONFLICT (id) DO NOTHING;
+-- This migration sets up admin functions without creating placeholder data
+-- Admin user records will be created through normal signup process
 
 -- Create admin management functions
 CREATE OR REPLACE FUNCTION is_admin_user(user_id UUID)

@@ -1,17 +1,17 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { 
-  AuthLayout, 
-  AuthForm, 
-  FormGroup, 
-  FormInput, 
-  ErrorMessage, 
-  AuthButton, 
+import Link from 'next/link';
+import { useState } from 'react';
+import {
+  AuthButton,
+  AuthForm,
+  AuthLayout,
   AuthLinks,
-  SuccessMessage 
+  ErrorMessage,
+  FormGroup,
+  FormInput,
+  SuccessMessage,
 } from '../../../components/AuthLayout';
 
 const supabase = createClientComponentClient();
@@ -24,7 +24,7 @@ export default function ResetPasswordPage() {
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email.trim()) {
       setError('メールアドレスを入力してください');
       return;
@@ -34,12 +34,9 @@ export default function ResetPasswordPage() {
     setError(null);
 
     try {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        email.trim(),
-        {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/update-password`,
-        }
-      );
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/update-password`,
+      });
 
       if (resetError) {
         setError('パスワードリセットメールの送信に失敗しました');
@@ -60,12 +57,8 @@ export default function ResetPasswordPage() {
         <p>
           パスワードリセット用のメールを <strong>{email}</strong> に送信しました。
         </p>
-        <p>
-          メール内のリンクをクリックして、新しいパスワードを設定してください。
-        </p>
-        <p className="note">
-          メールが届かない場合は、迷惑メールフォルダもご確認ください。
-        </p>
+        <p>メール内のリンクをクリックして、新しいパスワードを設定してください。</p>
+        <p className="note">メールが届かない場合は、迷惑メールフォルダもご確認ください。</p>
         <div className="success-actions">
           <Link href="/auth/login" className="auth-button primary">
             ログイン画面へ
@@ -82,7 +75,7 @@ export default function ResetPasswordPage() {
     <AuthLayout
       title="パスワードリセット"
       subtitle="登録済みのメールアドレスを入力してください"
-      backLink={{ href: "/auth/login", text: "ログイン画面に戻る" }}
+      backLink={{ href: '/auth/login', text: 'ログイン画面に戻る' }}
     >
       <AuthForm onSubmit={handleResetPassword}>
         <FormGroup label="メールアドレス" htmlFor="email">

@@ -1,7 +1,7 @@
 // app/contexts/ThemeContext.tsx
 'use client';
 
-import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import React, { createContext, useState, useContext, type ReactNode, useEffect } from 'react';
 
 // テーマの型定義
 type Theme = 'stabo-classic' | 'modern-chic' | 'y2k-web' | 'harajuku-pop';
@@ -32,14 +32,13 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     if (savedTheme) {
       setThemeState(savedTheme);
       document.documentElement.setAttribute('data-theme', savedTheme);
+    } else {
+      // 初期テーマを適用
+      document.documentElement.setAttribute('data-theme', 'stabo-classic');
     }
   }, []);
 
-  return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={{ theme, setTheme }}>{children}</ThemeContext.Provider>;
 };
 
 // 他のコンポーネントからテーマ情報を使えるようにするカスタムフック

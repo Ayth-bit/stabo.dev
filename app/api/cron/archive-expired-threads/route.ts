@@ -1,21 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { supabase } from '../../../../lib/supabase';
+import { type NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
     // 認証ヘッダーチェック（本番環境ではCron Job用の認証を追加）
     const authorization = request.headers.get('authorization');
     const expectedToken = process.env.CRON_SECRET_TOKEN;
-    
+
     if (expectedToken && authorization !== `Bearer ${expectedToken}`) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = createRouteHandlerClient({ cookies });
+    // Using unified Supabase client
     const now = new Date().toISOString();
 
     // 期限切れのスレッドを取得
@@ -27,37 +23,31 @@ export async function POST(request: NextRequest) {
 
     if (fetchError) {
       console.error('Failed to fetch expired threads:', fetchError);
-      return NextResponse.json(
-        { error: 'Failed to fetch expired threads' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Failed to fetch expired threads' }, { status: 500 });
     }
 
     if (!expiredThreads || expiredThreads.length === 0) {
       return NextResponse.json({
         message: 'No expired threads found',
         archivedCount: 0,
-        timestamp: now
+        timestamp: now,
       });
     }
 
     // スレッドをアーカイブ
-    const threadIds = expiredThreads.map(thread => thread.id);
+    const threadIds = expiredThreads.map((thread) => thread.id);
     const { error: updateError } = await supabase
       .from('threads')
       .update({
         is_archived: true,
         archived_at: now,
-        updated_at: now
+        updated_at: now,
       })
       .in('id', threadIds);
 
     if (updateError) {
       console.error('Failed to archive expired threads:', updateError);
-      return NextResponse.json(
-        { error: 'Failed to archive expired threads' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Failed to archive expired threads' }, { status: 500 });
     }
 
     // ログ出力
@@ -67,21 +57,17 @@ export async function POST(request: NextRequest) {
       message: 'Expired threads archived successfully',
       archivedCount: threadIds.length,
       archivedThreadIds: threadIds,
-      timestamp: now
+      timestamp: now,
     });
-
   } catch (error) {
     console.error('Cron job error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
 // GET メソッドで動作状況確認
 export async function GET() {
-  const supabase = createRouteHandlerClient({ cookies });
+  // Using unified Supabase client
 
   try {
     // 統計情報を取得
@@ -96,9 +82,9 @@ export async function GET() {
     }
 
     const now = new Date();
-    const activeThreads = stats?.filter(t => !t.is_archived) || [];
-    const expiredCount = activeThreads.filter(t => 
-      t.expires_at && new Date(t.expires_at) < now
+    const activeThreads = stats?.filter((t) => !t.is_archived) || [];
+    const expiredCount = activeThreads.filter(
+      (t) => t.expires_at && new Date(t.expires_at) < now
     ).length;
 
     return NextResponse.json({
@@ -107,14 +93,10 @@ export async function GET() {
       activeThreads: activeThreads.length,
       archivedThreads: (stats?.length || 0) - activeThreads.length,
       expiredPendingArchive: expiredCount,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
     console.error('Status check error:', error);
-    return NextResponse.json(
-      { error: 'Failed to get status' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to get status' }, { status: 500 });
   }
 }

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import type { Board, BoardThread, Chat, User } from '@/app/types/domain';
 import dynamic from 'next/dynamic';
-import { Board, BoardThread, User, Chat } from '@/app/types/domain';
+import * as React from 'react';
 
 // Mapboxコンポーネントを動的インポート（SSR回避）
-const AdminMapView = dynamic(() => import('@/components/AdminMapView'), { 
+const AdminMapView = dynamic(() => import('@/components/AdminMapView'), {
   ssr: false,
-  loading: () => <div>地図を読み込み中...</div>
+  loading: () => <div>地図を読み込み中...</div>,
 });
 
 interface MapData {
@@ -30,19 +30,19 @@ interface MapFilters {
 }
 
 export default function AdminPage() {
-  const [mapData, setMapData] = useState<MapData>({
+  const [mapData, setMapData] = React.useState<MapData>({
     boards: [],
     threads: [],
     users: [],
-    chats: []
+    chats: [],
   });
-  
-  const [adminSetupStatus, setAdminSetupStatus] = useState<{
-    exists: boolean;
-    hasProfile: boolean;
-  } | null>(null);
-  
-  const [filters, setFilters] = useState<MapFilters>({
+
+  // const [adminSetupStatus, setAdminSetupStatus] = useState<{
+  //   exists: boolean;
+  //   hasProfile: boolean;
+  // } | null>(null);
+
+  const [filters, setFilters] = React.useState<MapFilters>({
     showBoards: true,
     showThreads: true,
     showUsers: false,
@@ -50,14 +50,14 @@ export default function AdminPage() {
     boardType: 'all',
     dateRange: {
       start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7日前
-      end: new Date()
-    }
+      end: new Date(),
+    },
   });
-  
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchMapData = useCallback(async () => {
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const fetchMapData = React.useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -67,7 +67,7 @@ export default function AdminPage() {
         showChats: filters.showChats.toString(),
         boardType: filters.boardType,
         startDate: filters.dateRange.start.toISOString(),
-        endDate: filters.dateRange.end.toISOString()
+        endDate: filters.dateRange.end.toISOString(),
       });
 
       const response = await fetch(`/api/admin/map-data?${params}`);
@@ -84,89 +84,106 @@ export default function AdminPage() {
     }
   }, [filters]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     fetchMapData();
   }, [fetchMapData]);
 
   const handleFilterChange = (newFilters: Partial<MapFilters>) => {
-    setFilters(prev => ({ ...prev, ...newFilters }));
+    setFilters((prev) => ({ ...prev, ...newFilters }));
   };
 
   if (loading) {
     return (
-      <div className="admin-page">
-        <div className="loading">データを読み込み中...</div>
+      <div className="h-screen flex flex-col">
+        <div className="flex justify-center items-center h-full text-xl">データを読み込み中...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="admin-page">
-        <div className="error">エラー: {error}</div>
+      <div className="h-screen flex flex-col">
+        <div className="flex justify-center items-center h-full text-xl text-red-600">
+          エラー: {error}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="admin-page">
-      <header className="admin-header">
-        <h1>管理画面 - 地図ビュー</h1>
-        <div className="stats">
-          <span>掲示板: {mapData.boards.length}</span>
-          <span>投稿: {mapData.threads.length}</span>
-          <span>ユーザー: {mapData.users.length}</span>
-          <span>チャット: {mapData.chats.length}</span>
+    <div className="h-screen flex flex-col">
+      <header className="px-8 py-4 bg-gray-100 border-b border-gray-300 flex justify-between items-center">
+        <h1 className="m-0 text-2xl">管理画面 - 地図ビュー</h1>
+        <div className="flex gap-4">
+          <span className="px-2 py-1 bg-blue-600 text-white rounded text-sm">
+            掲示板: {mapData.boards.length}
+          </span>
+          <span className="px-2 py-1 bg-blue-600 text-white rounded text-sm">
+            投稿: {mapData.threads.length}
+          </span>
+          <span className="px-2 py-1 bg-blue-600 text-white rounded text-sm">
+            ユーザー: {mapData.users.length}
+          </span>
+          <span className="px-2 py-1 bg-blue-600 text-white rounded text-sm">
+            チャット: {mapData.chats.length}
+          </span>
         </div>
       </header>
 
-      <div className="admin-content">
-        <aside className="filter-panel">
-          <h3>フィルター</h3>
-          
-          <div className="filter-group">
-            <h4>表示項目</h4>
-            <label>
+      <div className="flex flex-1">
+        <aside className="w-75 p-4 bg-gray-50 border-r border-gray-300 overflow-y-auto">
+          <h3 className="m-0 mb-4 text-xl">フィルター</h3>
+
+          <div className="mb-6">
+            <h4 className="m-0 mb-2 text-base text-gray-700">表示項目</h4>
+            <label className="block mb-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={filters.showBoards}
                 onChange={(e) => handleFilterChange({ showBoards: e.target.checked })}
+                className="mr-2"
               />
               掲示板
             </label>
-            <label>
+            <label className="block mb-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={filters.showThreads}
                 onChange={(e) => handleFilterChange({ showThreads: e.target.checked })}
+                className="mr-2"
               />
               投稿
             </label>
-            <label>
+            <label className="block mb-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={filters.showUsers}
                 onChange={(e) => handleFilterChange({ showUsers: e.target.checked })}
+                className="mr-2"
               />
               ユーザー拠点
             </label>
-            <label>
+            <label className="block mb-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={filters.showChats}
                 onChange={(e) => handleFilterChange({ showChats: e.target.checked })}
+                className="mr-2"
               />
               チャット
             </label>
           </div>
 
-          <div className="filter-group">
-            <h4>掲示板タイプ</h4>
+          <div className="mb-6">
+            <h4 className="m-0 mb-2 text-base text-gray-700">掲示板タイプ</h4>
             <select
               value={filters.boardType}
-              onChange={(e) => handleFilterChange({ 
-                boardType: e.target.value as MapFilters['boardType'] 
-              })}
+              onChange={(e) =>
+                handleFilterChange({
+                  boardType: e.target.value as MapFilters['boardType'],
+                })
+              }
+              className="w-full p-2 border border-gray-400 rounded mb-2"
             >
               <option value="all">すべて</option>
               <option value="station">駅</option>
@@ -175,138 +192,41 @@ export default function AdminPage() {
             </select>
           </div>
 
-          <div className="filter-group">
-            <h4>期間</h4>
+          <div className="mb-6">
+            <h4 className="m-0 mb-2 text-base text-gray-700">期間</h4>
             <input
               type="date"
               value={filters.dateRange.start.toISOString().split('T')[0]}
-              onChange={(e) => handleFilterChange({
-                dateRange: {
-                  ...filters.dateRange,
-                  start: new Date(e.target.value)
-                }
-              })}
+              onChange={(e) =>
+                handleFilterChange({
+                  dateRange: {
+                    ...filters.dateRange,
+                    start: new Date(e.target.value),
+                  },
+                })
+              }
+              className="w-full p-2 border border-gray-400 rounded mb-2"
             />
             <input
               type="date"
               value={filters.dateRange.end.toISOString().split('T')[0]}
-              onChange={(e) => handleFilterChange({
-                dateRange: {
-                  ...filters.dateRange,
-                  end: new Date(e.target.value)
-                }
-              })}
+              onChange={(e) =>
+                handleFilterChange({
+                  dateRange: {
+                    ...filters.dateRange,
+                    end: new Date(e.target.value),
+                  },
+                })
+              }
+              className="w-full p-2 border border-gray-400 rounded mb-2"
             />
           </div>
         </aside>
 
-        <main className="map-container">
-          <AdminMapView 
-            data={mapData}
-            filters={filters}
-          />
+        <main className="flex-1 relative">
+          <AdminMapView data={mapData} filters={filters} />
         </main>
       </div>
-
-      <style jsx>{`
-        .admin-page {
-          height: 100vh;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .admin-header {
-          padding: 1rem 2rem;
-          background: #f5f5f5;
-          border-bottom: 1px solid #ddd;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .admin-header h1 {
-          margin: 0;
-          font-size: 1.5rem;
-        }
-
-        .stats {
-          display: flex;
-          gap: 1rem;
-        }
-
-        .stats span {
-          padding: 0.25rem 0.5rem;
-          background: #007bff;
-          color: white;
-          border-radius: 4px;
-          font-size: 0.875rem;
-        }
-
-        .admin-content {
-          flex: 1;
-          display: flex;
-        }
-
-        .filter-panel {
-          width: 300px;
-          padding: 1rem;
-          background: #fafafa;
-          border-right: 1px solid #ddd;
-          overflow-y: auto;
-        }
-
-        .filter-panel h3 {
-          margin: 0 0 1rem 0;
-          font-size: 1.25rem;
-        }
-
-        .filter-group {
-          margin-bottom: 1.5rem;
-        }
-
-        .filter-group h4 {
-          margin: 0 0 0.5rem 0;
-          font-size: 1rem;
-          color: #333;
-        }
-
-        .filter-group label {
-          display: block;
-          margin-bottom: 0.5rem;
-          cursor: pointer;
-        }
-
-        .filter-group input[type="checkbox"] {
-          margin-right: 0.5rem;
-        }
-
-        .filter-group select,
-        .filter-group input[type="date"] {
-          width: 100%;
-          padding: 0.5rem;
-          border: 1px solid #ccc;
-          border-radius: 4px;
-          margin-bottom: 0.5rem;
-        }
-
-        .map-container {
-          flex: 1;
-          position: relative;
-        }
-
-        .loading,
-        .error {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          height: 100vh;
-          font-size: 1.25rem;
-        }
-
-        .error {
-          color: #dc3545;
-        }
-      `}</style>
     </div>
   );
 }

@@ -1,8 +1,13 @@
 // Location Usecase - 位置・距離関連のビジネスロジック
 // ====================================
 
-import { Board, Location, DistanceResult } from '@/app/types/domain';
-import { IBoardRepository, IUserRepository, IStickerRepository, IGachaRepository } from '@/app/repositories/interfaces';
+import type {
+  IBoardRepository,
+  IGachaRepository,
+  IStickerRepository,
+  IUserRepository,
+} from '@/app/repositories/interfaces';
+import type { Board, DistanceResult, Location } from '@/app/types/domain';
 
 export class LocationUsecase {
   constructor(
@@ -20,7 +25,7 @@ export class LocationUsecase {
 
     // ユーザーの持っているステッカーによる距離拡張効果を計算
     const radiusBoost = await this.calculateRadiusBoost(userId);
-    
+
     const allBoards = await this.boardRepository.findAll();
     const accessibleBoards: Board[] = [];
 
@@ -33,7 +38,7 @@ export class LocationUsecase {
       );
 
       const effectiveRadius = board.accessRadius + radiusBoost;
-      
+
       if (distance <= effectiveRadius) {
         accessibleBoards.push(board);
       }
@@ -61,10 +66,10 @@ export class LocationUsecase {
     );
 
     const effectiveRadius = board.accessRadius + radiusBoost;
-    
+
     return {
       distance,
-      isWithinRange: distance <= effectiveRadius
+      isWithinRange: distance <= effectiveRadius,
     };
   }
 
@@ -77,8 +82,8 @@ export class LocationUsecase {
     }>;
   }> {
     const gachaResults = await this.gachaRepository.findByUserId(userId);
-    const stickerIds = gachaResults.map(result => result.stickerId);
-    
+    const stickerIds = gachaResults.map((result) => result.stickerId);
+
     const totalBoost = await this.calculateRadiusBoost(userId);
     const activeStickers = [];
 
@@ -88,14 +93,14 @@ export class LocationUsecase {
         activeStickers.push({
           stickerId: sticker.id,
           stickerName: sticker.name,
-          effectRadius: sticker.effectRadius
+          effectRadius: sticker.effectRadius,
         });
       }
     }
 
     return {
       totalBoost,
-      activeStickers
+      activeStickers,
     };
   }
 
@@ -116,15 +121,18 @@ export class LocationUsecase {
 
   private calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
     const R = 6371000; // 地球の半径（メートル）
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
+
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    
+
     return R * c; // メートルで返す
   }
 }

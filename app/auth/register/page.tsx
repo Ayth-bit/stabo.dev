@@ -1,20 +1,18 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { 
-  AuthLayout, 
-  AuthForm, 
-  FormGroup, 
-  FormInput, 
-  ErrorMessage, 
-  AuthButton, 
+import { useState } from 'react';
+import {
+  AuthButton,
+  AuthForm,
+  AuthLayout,
   AuthLinks,
-  SuccessMessage 
+  ErrorMessage,
+  FormGroup,
+  FormInput,
+  SuccessMessage,
 } from '../../../components/AuthLayout';
-
-const supabase = createClientComponentClient();
+import { supabase } from '../../../lib/supabase';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -28,7 +26,7 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // バリデーション
     if (!email.trim() || !password.trim() || !displayName.trim()) {
       setError('すべての必須項目を入力してください');
@@ -68,23 +66,29 @@ export default function RegisterPage() {
         options: {
           data: {
             display_name: displayName.trim(),
-            is_creator: isCreator
-          }
-        }
+            is_creator: isCreator,
+          },
+        },
       });
 
       if (authError) {
         console.error('Auth error:');
         console.error('Full auth error:', JSON.stringify(authError, null, 2));
-        
+
         // User-friendly error messages
-        if (authError.message.includes('already registered') || authError.message.includes('already been registered')) {
+        if (
+          authError.message.includes('already registered') ||
+          authError.message.includes('already been registered')
+        ) {
           setError('このメールアドレスは既に登録されています');
         } else if (authError.message.includes('invalid') || authError.message.includes('Invalid')) {
           setError('メールアドレスの形式が正しくありません');
         } else if (authError.message.includes('weak password')) {
           setError('パスワードが弱すぎます。より複雑なパスワードをお試しください');
-        } else if (authError.message.includes('rate limit') || authError.message.includes('too many')) {
+        } else if (
+          authError.message.includes('rate limit') ||
+          authError.message.includes('too many')
+        ) {
           setError('登録試行回数が上限に達しました。しばらく時間をおいてから再度お試しください');
         } else {
           setError('登録に失敗しました。しばらく時間をおいてから再度お試しください');
@@ -94,15 +98,13 @@ export default function RegisterPage() {
 
       if (data.user) {
         // 追加のユーザー情報をusers_extendedテーブルに保存
-        const { error: profileError } = await supabase
-          .from('users_extended')
-          .insert({
-            id: data.user.id,
-            display_name: displayName.trim(),
-            is_creator: isCreator,
-            qr_code: `stabo_${data.user.id.slice(0, 8)}_${Date.now().toString(36)}`,
-            points: 100 // 新規登録ボーナス
-          });
+        const { error: profileError } = await supabase.from('users_extended').insert({
+          id: data.user.id,
+          display_name: displayName.trim(),
+          is_creator: isCreator,
+          qr_code: `stabo_${data.user.id.slice(0, 8)}_${Date.now().toString(36)}`,
+          points: 100, // 新規登録ボーナス
+        });
 
         if (profileError) {
           console.error('Profile creation error:');
@@ -111,7 +113,7 @@ export default function RegisterPage() {
             message: profileError.message || 'No message',
             details: profileError.details || 'No details',
             hint: profileError.hint || 'No hint',
-            code: profileError.code || 'No code'
+            code: profileError.code || 'No code',
           });
           // エラーがあってもメール確認は送信されているため、成功として処理
         }
@@ -134,9 +136,7 @@ export default function RegisterPage() {
         <p>
           確認メールを <strong>{email}</strong> に送信しました。
         </p>
-        <p>
-          メール内のリンクをクリックして、アカウントを有効化してください。
-        </p>
+        <p>メール内のリンクをクリックして、アカウントを有効化してください。</p>
         <div className="success-actions">
           <Link href="/auth/login" className="auth-button primary">
             ログイン画面へ
@@ -153,7 +153,7 @@ export default function RegisterPage() {
     <AuthLayout
       title="新規登録"
       subtitle="stabo.devアカウントを作成"
-      backLink={{ href: "/", text: "トップページに戻る" }}
+      backLink={{ href: '/', text: 'トップページに戻る' }}
     >
       <AuthForm onSubmit={handleRegister}>
         <FormGroup label="表示名 *" htmlFor="displayName">

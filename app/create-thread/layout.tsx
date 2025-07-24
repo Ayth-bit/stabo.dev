@@ -1,5 +1,6 @@
 // app/create-thread/layout.tsx
-import React, { Suspense } from 'react';
+import type React from 'react';
+import { Suspense } from 'react';
 
 export default function CreateThreadLayout({
   children,
@@ -9,8 +10,6 @@ export default function CreateThreadLayout({
   return (
     // Suspense で囲むことで、useSearchParams() が利用可能になるまで待機します。
     // fallback には、ローディング中に表示するUIを指定します。
-    <Suspense fallback={<div>位置情報を準備中...</div>}>
-      {children}
-    </Suspense>
+    <Suspense fallback={<div>位置情報を準備中...</div>}>{children}</Suspense>
   );
 }

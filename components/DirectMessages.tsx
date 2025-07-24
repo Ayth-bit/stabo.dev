@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const supabase = createClientComponentClient();
 
@@ -50,9 +50,9 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
   const fetchChats = useCallback(async () => {
     try {
@@ -71,7 +71,7 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
       if (error) {
         console.error('チャット一覧取得エラー:', error);
         console.error('Full error object:', JSON.stringify(error, null, 2));
-        
+
         // chatsテーブルが存在しない場合のフォールバック
         if (error.code === '42P01' || error.message?.includes('does not exist')) {
           console.warn('chats table does not exist - setting empty chats');
@@ -85,7 +85,7 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
       const chatsWithUserInfo: Chat[] = [];
       for (const chat of data || []) {
         const otherUserId = chat.user1_id === userId ? chat.user2_id : chat.user1_id;
-        
+
         const { data: userData, error: userError } = await supabase
           .from('users_extended')
           .select('id, display_name')
@@ -99,13 +99,13 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
             ...chat,
             other_user: {
               id: otherUserId,
-              display_name: '不明なユーザー'
-            }
+              display_name: '不明なユーザー',
+            },
           });
         } else if (userData) {
           chatsWithUserInfo.push({
             ...chat,
-            other_user: userData
+            other_user: userData,
           });
         }
       }
@@ -117,61 +117,68 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
     }
   }, [userId]);
 
-  const fetchMessages = useCallback(async (chatId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('chat_messages')
-        .select(`
+  const fetchMessages = useCallback(
+    async (chatId: string) => {
+      try {
+        const { data, error } = await supabase
+          .from('chat_messages')
+          .select(`
           id,
           sender_id,
           message,
           created_at,
           is_read
         `)
-        .eq('chat_id', chatId)
-        .order('created_at', { ascending: true });
+          .eq('chat_id', chatId)
+          .order('created_at', { ascending: true });
 
-      if (error) {
-        console.error('メッセージ取得エラー:', error);
-        console.error('Full error object:', JSON.stringify(error, null, 2));
-        
-        // chat_messagesテーブルが存在しない場合のフォールバック
-        if (error.code === '42P01' || error.message?.includes('does not exist')) {
-          console.warn('chat_messages table does not exist - setting empty messages');
-          setMessages([]);
-          return;
+        if (error) {
+          console.error('メッセージ取得エラー:', error);
+          console.error('Full error object:', JSON.stringify(error, null, 2));
+
+          // chat_messagesテーブルが存在しない場合のフォールバック
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            console.warn('chat_messages table does not exist - setting empty messages');
+            setMessages([]);
+            return;
+          }
+          throw error;
         }
-        throw error;
+
+        // 送信者情報を付加
+        const messagesWithSender = (data || []).map((msg) => ({
+          ...msg,
+          sender: {
+            display_name:
+              msg.sender_id === userId ? 'あなた' : selectedChat?.other_user.display_name || '不明',
+          },
+        }));
+
+        setMessages(messagesWithSender);
+        setTimeout(scrollToBottom, 100);
+      } catch (err) {
+        console.error('メッセージ取得エラー:', err);
+        setError('メッセージの取得に失敗しました');
       }
+    },
+    [userId, selectedChat, scrollToBottom]
+  );
 
-      // 送信者情報を付加
-      const messagesWithSender = (data || []).map(msg => ({
-        ...msg,
-        sender: {
-          display_name: msg.sender_id === userId ? 'あなた' : selectedChat?.other_user.display_name || '不明'
-        }
-      }));
-
-      setMessages(messagesWithSender);
-      setTimeout(scrollToBottom, 100);
-    } catch (err) {
-      console.error('メッセージ取得エラー:', err);
-      setError('メッセージの取得に失敗しました');
-    }
-  }, [userId, selectedChat]);
-
-  const markMessagesAsRead = useCallback(async (chatId: string) => {
-    try {
-      await supabase
-        .from('chat_messages')
-        .update({ is_read: true })
-        .eq('chat_id', chatId)
-        .neq('sender_id', userId)
-        .eq('is_read', false);
-    } catch (err) {
-      console.error('既読更新エラー:', err);
-    }
-  }, [userId]);
+  const markMessagesAsRead = useCallback(
+    async (chatId: string) => {
+      try {
+        await supabase
+          .from('chat_messages')
+          .update({ is_read: true })
+          .eq('chat_id', chatId)
+          .neq('sender_id', userId)
+          .eq('is_read', false);
+      } catch (err) {
+        console.error('既読更新エラー:', err);
+      }
+    },
+    [userId]
+  );
 
   useEffect(() => {
     fetchChats();
@@ -199,12 +206,18 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
           },
           (payload) => {
             const newMessage = payload.new as ChatMessage;
-            setMessages(prev => [...prev, {
-              ...newMessage,
-              sender: {
-                display_name: newMessage.sender_id === userId ? 'あなた' : selectedChat.other_user.display_name
-              }
-            }]);
+            setMessages((prev) => [
+              ...prev,
+              {
+                ...newMessage,
+                sender: {
+                  display_name:
+                    newMessage.sender_id === userId
+                      ? 'あなた'
+                      : selectedChat.other_user.display_name,
+                },
+              },
+            ]);
             scrollToBottom();
           }
         )
@@ -214,7 +227,7 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
         subscription.unsubscribe();
       };
     }
-  }, [selectedChat, userId]);
+  }, [selectedChat, userId, scrollToBottom]);
 
   const createChat = async (friendId: string) => {
     try {
@@ -222,12 +235,14 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
       const { data: existingChat } = await supabase
         .from('chats')
         .select('id')
-        .or(`and(user1_id.eq.${userId},user2_id.eq.${friendId}),and(user1_id.eq.${friendId},user2_id.eq.${userId})`)
+        .or(
+          `and(user1_id.eq.${userId},user2_id.eq.${friendId}),and(user1_id.eq.${friendId},user2_id.eq.${userId})`
+        )
         .single();
 
       if (existingChat) {
         // 既存のチャットを選択
-        const friend = connections.find(c => c.connected_user_id === friendId);
+        const friend = connections.find((c) => c.connected_user_id === friendId);
         if (friend) {
           setSelectedChat({
             id: existingChat.id,
@@ -237,8 +252,8 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
             last_message_at: null,
             other_user: {
               id: friendId,
-              display_name: friend.connected_user.display_name
-            }
+              display_name: friend.connected_user.display_name,
+            },
           });
         }
         return;
@@ -252,21 +267,21 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
         .from('chats')
         .insert({
           user1_id,
-          user2_id
+          user2_id,
         })
         .select()
         .single();
 
       if (createError) throw createError;
 
-      const friend = connections.find(c => c.connected_user_id === friendId);
+      const friend = connections.find((c) => c.connected_user_id === friendId);
       if (friend && newChat) {
         setSelectedChat({
           ...newChat,
           other_user: {
             id: friendId,
-            display_name: friend.connected_user.display_name
-          }
+            display_name: friend.connected_user.display_name,
+          },
         });
       }
 
@@ -282,13 +297,11 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('chat_messages')
-        .insert({
-          chat_id: selectedChat.id,
-          sender_id: userId,
-          message: newMessage.trim()
-        });
+      const { error } = await supabase.from('chat_messages').insert({
+        chat_id: selectedChat.id,
+        sender_id: userId,
+        message: newMessage.trim(),
+      });
 
       if (error) throw error;
 
@@ -310,27 +323,24 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
   };
 
   return (
-    <div className="direct-messages">
-      {error && (
-        <div className="error-message">
-          {error}
-        </div>
-      )}
+    <div className="h-96 flex flex-col">
+      {error && <div className="bg-red-50 text-red-600 p-4 rounded mb-4 text-sm border border-red-200">{error}</div>}
 
-      <div className="dm-container">
-        <div className="chat-sidebar">
-          <div className="sidebar-header">
-            <h4>メッセージ</h4>
+      <div className="flex h-full bg-white rounded-lg border border-gray-300 overflow-hidden flex-col md:flex-row">
+        <div className="w-full md:w-80 bg-gray-50 border-r border-gray-300 flex flex-col md:max-h-52 max-h-48 overflow-y-auto">
+          <div className="p-4 border-b border-gray-300">
+            <h4 className="m-0 text-gray-800">メッセージ</h4>
           </div>
-          
-          <div className="friends-to-chat">
-            <h5>友達にメッセージを送る</h5>
+
+          <div className="p-4">
+            <h5 className="m-0 mb-2 text-gray-800 text-sm font-semibold">友達にメッセージを送る</h5>
             {connections.length > 0 ? (
-              <div className="friends-list">
+              <div className="flex flex-col gap-1 mb-4">
                 {connections.map((friend) => (
                   <button
+                    type="button"
                     key={friend.id}
-                    className="friend-chat-button"
+                    className="bg-transparent hover:bg-white hover:border-yellow-500 border border-gray-300 p-2 rounded cursor-pointer text-left text-sm text-gray-800 transition-all"
                     onClick={() => createChat(friend.connected_user_id)}
                   >
                     {friend.connected_user.display_name}
@@ -338,62 +348,75 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
                 ))}
               </div>
             ) : (
-              <p className="no-friends">友達がいません</p>
+              <p className="text-gray-600 italic text-sm text-center p-4">友達がいません</p>
             )}
           </div>
 
-          <div className="chat-list">
-            <h5>チャット履歴</h5>
+          <div className="p-4">
+            <h5 className="m-0 mb-2 text-gray-800 text-sm font-semibold">チャット履歴</h5>
             {chats.length > 0 ? (
               chats.map((chat) => (
                 <button
+                  type="button"
                   key={chat.id}
-                  className={`chat-item ${selectedChat?.id === chat.id ? 'active' : ''}`}
+                  className={`flex justify-between items-start p-3 bg-transparent border-none rounded cursor-pointer text-left transition-all mb-1 w-full ${
+                    selectedChat?.id === chat.id ? 'bg-yellow-500 text-white' : 'hover:bg-yellow-100'
+                  }`}
                   onClick={() => setSelectedChat(chat)}
                 >
-                  <div className="chat-info">
-                    <span className="chat-name">{chat.other_user.display_name}</span>
+                  <div className="flex-1 flex flex-col gap-1">
+                    <span className="font-semibold text-sm">{chat.other_user.display_name}</span>
                     {chat.last_message && (
-                      <span className="last-message">{chat.last_message}</span>
+                      <span className="text-xs opacity-80 whitespace-nowrap overflow-hidden text-ellipsis max-w-36">
+                        {chat.last_message}
+                      </span>
                     )}
                   </div>
                   {chat.last_message_at && (
-                    <span className="chat-time">
+                    <span className="text-xs opacity-60 whitespace-nowrap">
                       {new Date(chat.last_message_at).toLocaleDateString('ja-JP', {
                         month: 'short',
-                        day: 'numeric'
+                        day: 'numeric',
                       })}
                     </span>
                   )}
                 </button>
               ))
             ) : (
-              <p className="no-chats">チャット履歴がありません</p>
+              <p className="text-gray-600 italic text-sm text-center p-4">チャット履歴がありません</p>
             )}
           </div>
         </div>
 
-        <div className="chat-main">
+        <div className="flex-1 flex flex-col">
           {selectedChat ? (
             <>
-              <div className="chat-header">
-                <h4>{selectedChat.other_user.display_name}</h4>
+              <div className="p-4 border-b border-gray-300 bg-gray-50">
+                <h4 className="m-0 text-gray-800">{selectedChat.other_user.display_name}</h4>
               </div>
-              
-              <div className="messages-container">
+
+              <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
                 {messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`message ${message.sender_id === userId ? 'own' : 'other'}`}
+                    className={`flex flex-col max-w-[70%] ${
+                      message.sender_id === userId ? 'self-end items-end' : 'self-start items-start'
+                    }`}
                   >
-                    <div className="message-content">
+                    <div
+                      className={`p-3 rounded-xl break-words whitespace-pre-wrap ${
+                        message.sender_id === userId
+                          ? 'bg-yellow-500 text-white rounded-br-md'
+                          : 'bg-gray-200 text-gray-800 rounded-bl-md'
+                      }`}
+                    >
                       {message.message}
                     </div>
-                    <div className="message-info">
-                      <span className="message-time">
+                    <div className="p-1">
+                      <span className="text-xs text-gray-500">
                         {new Date(message.created_at).toLocaleString('ja-JP', {
                           hour: '2-digit',
-                          minute: '2-digit'
+                          minute: '2-digit',
                         })}
                       </span>
                     </div>
@@ -402,7 +425,7 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
                 <div ref={messagesEndRef} />
               </div>
 
-              <div className="message-input">
+              <div className="p-4 border-t border-gray-300 flex gap-2">
                 <textarea
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
@@ -410,303 +433,26 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
                   placeholder="メッセージを入力..."
                   disabled={loading}
                   rows={3}
+                  className="flex-1 border border-gray-300 rounded p-3 resize-none font-sans focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200"
                 />
                 <button
+                  type="button"
                   onClick={sendMessage}
                   disabled={loading || !newMessage.trim()}
-                  className="send-button"
+                  className="bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white border-none px-6 py-3 rounded cursor-pointer font-semibold transition-all"
                 >
                   {loading ? '送信中...' : '送信'}
                 </button>
               </div>
             </>
           ) : (
-            <div className="no-chat-selected">
-              <p>チャットを選択してください</p>
+            <div className="flex-1 flex justify-center items-center">
+              <p className="text-gray-600 italic">チャットを選択してください</p>
             </div>
           )}
         </div>
       </div>
 
-      <style jsx>{`
-        .direct-messages {
-          height: 600px;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .error-message {
-          background: #fef2f2;
-          color: #dc2626;
-          padding: 1rem;
-          border-radius: 6px;
-          margin-bottom: 1rem;
-          font-size: 0.875rem;
-          border: 1px solid #fecaca;
-        }
-
-        .dm-container {
-          display: flex;
-          height: 100%;
-          background: white;
-          border-radius: 8px;
-          border: 1px solid var(--border-color);
-          overflow: hidden;
-        }
-
-        .chat-sidebar {
-          width: 300px;
-          background: #f8f9fa;
-          border-right: 1px solid var(--border-color);
-          display: flex;
-          flex-direction: column;
-        }
-
-        .sidebar-header {
-          padding: 1rem;
-          border-bottom: 1px solid var(--border-color);
-        }
-
-        .sidebar-header h4 {
-          margin: 0;
-          color: var(--text-primary);
-        }
-
-        .friends-to-chat, .chat-list {
-          padding: 1rem;
-        }
-
-        .friends-to-chat h5, .chat-list h5 {
-          margin: 0 0 0.5rem 0;
-          color: var(--text-primary);
-          font-size: 0.875rem;
-          font-weight: 600;
-        }
-
-        .friends-list {
-          display: flex;
-          flex-direction: column;
-          gap: 0.25rem;
-          margin-bottom: 1rem;
-        }
-
-        .friend-chat-button {
-          background: none;
-          border: 1px solid var(--border-color);
-          padding: 0.5rem;
-          border-radius: 4px;
-          cursor: pointer;
-          text-align: left;
-          font-size: 0.875rem;
-          color: var(--text-primary);
-          transition: all 0.2s;
-        }
-
-        .friend-chat-button:hover {
-          background: white;
-          border-color: rgb(230, 168, 0);
-        }
-
-        .chat-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          padding: 0.75rem;
-          background: none;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-          text-align: left;
-          transition: all 0.2s;
-          margin-bottom: 0.25rem;
-        }
-
-        .chat-item:hover {
-          background: rgba(230, 168, 0, 0.1);
-        }
-
-        .chat-item.active {
-          background: rgb(230, 168, 0);
-          color: white;
-        }
-
-        .chat-info {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 0.25rem;
-        }
-
-        .chat-name {
-          font-weight: 600;
-          font-size: 0.875rem;
-        }
-
-        .last-message {
-          font-size: 0.75rem;
-          opacity: 0.8;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          max-width: 150px;
-        }
-
-        .chat-time {
-          font-size: 0.75rem;
-          opacity: 0.6;
-          white-space: nowrap;
-        }
-
-        .chat-main {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .chat-header {
-          padding: 1rem;
-          border-bottom: 1px solid var(--border-color);
-          background: #f8f9fa;
-        }
-
-        .chat-header h4 {
-          margin: 0;
-          color: var(--text-primary);
-        }
-
-        .messages-container {
-          flex: 1;
-          overflow-y: auto;
-          padding: 1rem;
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-        }
-
-        .message {
-          display: flex;
-          flex-direction: column;
-          max-width: 70%;
-        }
-
-        .message.own {
-          align-self: flex-end;
-          align-items: flex-end;
-        }
-
-        .message.other {
-          align-self: flex-start;
-          align-items: flex-start;
-        }
-
-        .message-content {
-          padding: 0.75rem;
-          border-radius: 12px;
-          word-wrap: break-word;
-          white-space: pre-wrap;
-        }
-
-        .message.own .message-content {
-          background: rgb(230, 168, 0);
-          color: white;
-          border-bottom-right-radius: 4px;
-        }
-
-        .message.other .message-content {
-          background: #e9ecef;
-          color: var(--text-primary);
-          border-bottom-left-radius: 4px;
-        }
-
-        .message-info {
-          padding: 0.25rem 0.5rem;
-        }
-
-        .message-time {
-          font-size: 0.75rem;
-          color: var(--text-secondary);
-        }
-
-        .message-input {
-          padding: 1rem;
-          border-top: 1px solid var(--border-color);
-          display: flex;
-          gap: 0.5rem;
-        }
-
-        .message-input textarea {
-          flex: 1;
-          border: 1px solid var(--border-color);
-          border-radius: 6px;
-          padding: 0.75rem;
-          resize: none;
-          font-family: inherit;
-        }
-
-        .message-input textarea:focus {
-          outline: none;
-          border-color: rgb(230, 168, 0);
-          box-shadow: 0 0 0 2px rgba(230, 168, 0, 0.2);
-        }
-
-        .send-button {
-          background: rgb(230, 168, 0);
-          color: white;
-          border: none;
-          padding: 0.75rem 1.5rem;
-          border-radius: 6px;
-          cursor: pointer;
-          font-weight: 600;
-          transition: all 0.2s;
-        }
-
-        .send-button:hover:not(:disabled) {
-          background: rgba(230, 168, 0, 0.9);
-        }
-
-        .send-button:disabled {
-          background: var(--border-color);
-          color: var(--text-tertiary);
-          cursor: not-allowed;
-        }
-
-        .no-chat-selected {
-          flex: 1;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-        }
-
-        .no-chat-selected p {
-          color: var(--text-secondary);
-          font-style: italic;
-        }
-
-        .no-friends, .no-chats {
-          color: var(--text-secondary);
-          font-style: italic;
-          font-size: 0.875rem;
-          text-align: center;
-          padding: 1rem;
-        }
-
-        @media (max-width: 768px) {
-          .dm-container {
-            flex-direction: column;
-            height: auto;
-          }
-
-          .chat-sidebar {
-            width: 100%;
-            max-height: 200px;
-            overflow-y: auto;
-          }
-
-          .chat-main {
-            height: 400px;
-          }
-        }
-      `}</style>
     </div>
   );
 }

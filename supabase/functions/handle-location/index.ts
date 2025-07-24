@@ -42,18 +42,21 @@ serve(async (req) => {
 
     // 必須パラメータのチェック
     if (typeof latitude !== 'number' || typeof longitude !== 'number') {
-      return new Response(JSON.stringify({ error: 'Invalid latitude or longitude. Both must be numbers.' }), {
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        status: 400, // Bad Request
-      });
+      return new Response(
+        JSON.stringify({ error: 'Invalid latitude or longitude. Both must be numbers.' }),
+        {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          status: 400, // Bad Request
+        }
+      );
     }
 
     // スレッド検索の半径（キロメートル）を環境変数から取得
     // スレッド検索の半径（キロメートル）...
-    const SEARCH_RADIUS_KM = parseFloat(Deno.env.get('SEARCH_RADIUS_KM') || '0.3');
+    const SEARCH_RADIUS_KM = Number.parseFloat(Deno.env.get('SEARCH_RADIUS_KM') || '0.3');
 
     // ★ 投稿数の上限を環境変数から取得
-    const MAX_POST_COUNT = parseInt(Deno.env.get('MAX_POST_COUNT') || '1000', 10);
+    const MAX_POST_COUNT = Number.parseInt(Deno.env.get('MAX_POST_COUNT') || '1000', 10);
 
     // 1. 全てのスレッドを取得し、...
     // 1000レスに達したスレッドは対象外とします。
@@ -68,7 +71,7 @@ serve(async (req) => {
     }
 
     let foundThread = null;
-    let minDistance = Infinity; // 最小距離を無限大で初期化
+    let minDistance = Number.POSITIVE_INFINITY; // 最小距離を無限大で初期化
 
     // 各スレッドとの距離を計算し、最も近い有効なスレッドを特定
     for (const thread of allThreads) {
@@ -96,24 +99,28 @@ serve(async (req) => {
     // 2. 結果に基づいて応答を返す
     if (foundThread) {
       // 既存のスレッドが見つかった場合
-      return new Response(JSON.stringify({
-        type: 'found_thread',
-        thread: foundThread,
-      }), {
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        status: 200,
-      });
-    } else {
-      // 既存のスレッドが見つからなかった場合
-      return new Response(JSON.stringify({
+      return new Response(
+        JSON.stringify({
+          type: 'found_thread',
+          thread: foundThread,
+        }),
+        {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          status: 200,
+        }
+      );
+    }
+    // 既存のスレッドが見つからなかった場合
+    return new Response(
+      JSON.stringify({
         type: 'create_new_thread',
         message: 'この位置にスレッドが見つかりませんでした。新しいスレッドを作成できます。',
-      }), {
+      }),
+      {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
         status: 200,
-      });
-    }
-
+      }
+    );
   } catch (error: any) {
     console.error('Edge Function execution error:', error.message);
     return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), {

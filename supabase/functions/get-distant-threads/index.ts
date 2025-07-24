@@ -28,22 +28,21 @@ serve(async (req) => {
     });
 
     // 投稿数上限を環境変数から取得（なければ1000）
-    const MAX_POST_COUNT = parseInt(Deno.env.get('MAX_POST_COUNT') || '1000', 10);
+    const MAX_POST_COUNT = Number.parseInt(Deno.env.get('MAX_POST_COUNT') || '1000', 10);
 
     const { data: allThreads, error: fetchError } = await supabase
-    .from('threads')
-    // ★★★ この select 文に is_global が含まれていることが非常に重要です ★★★
-    .select('id, title, latitude, longitude, post_count, is_global')
-    .lt('post_count', MAX_POST_COUNT)
-    .eq('is_global', false); // グローバルスレッドは除外
-  
+      .from('threads')
+      // ★★★ この select 文に is_global が含まれていることが非常に重要です ★★★
+      .select('id, title, latitude, longitude, post_count, is_global')
+      .lt('post_count', MAX_POST_COUNT)
+      .eq('is_global', false); // グローバルスレッドは除外
 
     if (fetchError) throw fetchError;
     if (!allThreads) {
-        return new Response(JSON.stringify([]), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200,
-        });
+      return new Response(JSON.stringify([]), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
     }
 
     const threadsWithDistance = await Promise.all(
@@ -60,7 +59,9 @@ serve(async (req) => {
     );
 
     const distantThreads = threadsWithDistance
-      .filter((thread): thread is NonNullable<typeof thread> => thread !== null && thread.distance > 1.5)
+      .filter(
+        (thread): thread is NonNullable<typeof thread> => thread !== null && thread.distance > 0.1
+      )
       .sort((a, b) => a.distance - b.distance)
       .slice(0, 4);
 
@@ -68,7 +69,6 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
-
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

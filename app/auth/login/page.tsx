@@ -1,19 +1,17 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { 
-  AuthLayout, 
-  AuthForm, 
-  FormGroup, 
-  FormInput, 
-  ErrorMessage, 
-  AuthButton, 
-  AuthLinks 
+import { useState } from 'react';
+import {
+  AuthButton,
+  AuthForm,
+  AuthLayout,
+  AuthLinks,
+  ErrorMessage,
+  FormGroup,
+  FormInput,
 } from '../../../components/AuthLayout';
-
-const supabase = createClientComponentClient();
+import { supabase } from '../../../lib/supabase';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -23,11 +21,13 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email.trim() || !password.trim()) {
       setError('メールアドレスとパスワードを入力してください');
       return;
     }
+
+    console.log('Attempting login with email:', email);
 
     setLoading(true);
     setError(null);
@@ -39,8 +39,12 @@ export default function LoginPage() {
       });
 
       if (authError) {
+        console.error('Supabase auth error:', authError);
+        
         if (authError.message === 'Invalid login credentials') {
           setError('メールアドレスまたはパスワードが間違っています');
+        } else if (authError.message.includes('Email not confirmed')) {
+          setError('メールアドレスが確認されていません。確認メールをご確認ください。');
         } else {
           setError('ログインに失敗しました。もう一度お試しください。');
         }
@@ -63,7 +67,7 @@ export default function LoginPage() {
     <AuthLayout
       title="ログイン"
       subtitle="stabo.devへようこそ"
-      backLink={{ href: "/", text: "トップページに戻る" }}
+      backLink={{ href: '/', text: 'トップページに戻る' }}
     >
       <AuthForm onSubmit={handleLogin}>
         <FormGroup label="メールアドレス" htmlFor="email">

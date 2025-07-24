@@ -1,8 +1,8 @@
 // Thread Lifecycle Usecase - スレッド寿命管理のビジネスロジック
 // ====================================
 
-import { BoardThread } from '@/app/types/domain';
-import { IBoardThreadRepository } from '@/app/repositories/interfaces';
+import type { IBoardThreadRepository } from '@/app/repositories/interfaces';
+import type { BoardThread } from '@/app/types/domain';
 
 export interface ThreadLifecycleConfig {
   defaultExpireDays: number;
@@ -14,7 +14,7 @@ export class ThreadLifecycleUsecase {
   private config: ThreadLifecycleConfig = {
     defaultExpireDays: 3, // デフォルト3日で期限切れ
     maxThreadsPerBoard: 100, // 掲示板あたり最大100スレッド
-    fadeOutStartHours: 6 // 期限切れ6時間前からフェードアウト
+    fadeOutStartHours: 6, // 期限切れ6時間前からフェードアウト
   };
 
   constructor(private threadRepository: IBoardThreadRepository) {}
@@ -36,19 +36,23 @@ export class ThreadLifecycleUsecase {
       content,
       stickerId: stickerId || null,
       expiresAt,
-      isArchived: false
+      isArchived: false,
     });
   }
 
-  async getThreadsWithLifecycleInfo(boardId: string): Promise<Array<BoardThread & {
-    remainingHours: number;
-    fadeFactor: number; // 0-1, フェードアウト度合い
-    isExpiring: boolean;
-  }>> {
+  async getThreadsWithLifecycleInfo(boardId: string): Promise<
+    Array<
+      BoardThread & {
+        remainingHours: number;
+        fadeFactor: number; // 0-1, フェードアウト度合い
+        isExpiring: boolean;
+      }
+    >
+  > {
     const threads = await this.threadRepository.findByBoardId(boardId);
     const now = new Date();
 
-    return threads.map(thread => {
+    return threads.map((thread) => {
       let remainingHours = 0;
       let fadeFactor = 1;
       let isExpiring = false;
@@ -56,7 +60,7 @@ export class ThreadLifecycleUsecase {
       if (thread.expiresAt) {
         const remainingMs = thread.expiresAt.getTime() - now.getTime();
         remainingHours = Math.max(0, remainingMs / (1000 * 60 * 60));
-        
+
         // フェードアウト計算
         const fadeStartHours = this.config.fadeOutStartHours;
         if (remainingHours <= fadeStartHours) {
@@ -69,7 +73,7 @@ export class ThreadLifecycleUsecase {
         ...thread,
         remainingHours,
         fadeFactor,
-        isExpiring
+        isExpiring,
       };
     });
   }
@@ -88,7 +92,7 @@ export class ThreadLifecycleUsecase {
 
     return {
       archivedCount: archivedThreadIds.length,
-      archivedThreadIds
+      archivedThreadIds,
     };
   }
 
@@ -102,21 +106,21 @@ export class ThreadLifecycleUsecase {
   }> {
     const allThreads = await this.threadRepository.findByBoardId(''); // すべてのスレッド
     const boardGroups = this.groupThreadsByBoard(allThreads);
-    
+
     let totalArchivedCount = 0;
     const boardStats = [];
 
     for (const [boardId, threads] of boardGroups) {
-      const activeThreads = threads.filter(t => !t.isArchived);
-      
+      const activeThreads = threads.filter((t) => !t.isArchived);
+
       if (activeThreads.length > this.config.maxThreadsPerBoard) {
         // 作成日が古い順にソート
-        const sortedThreads = activeThreads.sort((a, b) => 
-          a.createdAt.getTime() - b.createdAt.getTime()
+        const sortedThreads = activeThreads.sort(
+          (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
         );
-        
+
         const threadsToArchive = sortedThreads.slice(
-          0, 
+          0,
           activeThreads.length - this.config.maxThreadsPerBoard
         );
 
@@ -125,18 +129,18 @@ export class ThreadLifecycleUsecase {
         }
 
         totalArchivedCount += threadsToArchive.length;
-        
+
         boardStats.push({
           boardId,
           threadCount: activeThreads.length,
-          archivedCount: threadsToArchive.length
+          archivedCount: threadsToArchive.length,
         });
       }
     }
 
     return {
       archivedCount: totalArchivedCount,
-      boardStats
+      boardStats,
     };
   }
 
@@ -154,11 +158,11 @@ export class ThreadLifecycleUsecase {
     newExpiresAt.setDate(newExpiresAt.getDate() + additionalDays);
 
     return await this.threadRepository.update(threadId, {
-      expiresAt: newExpiresAt
+      expiresAt: newExpiresAt,
     });
   }
 
-  async restoreThread(threadId: string, _userId: string): Promise<BoardThread> {
+  async restoreThread(threadId: string): Promise<BoardThread> {
     const thread = await this.threadRepository.findById(threadId);
     if (!thread) {
       throw new Error('Thread not found');
@@ -169,7 +173,7 @@ export class ThreadLifecycleUsecase {
     }
 
     // 復元回数チェック（1回のみ）
-    const restoreCount = (thread as any).restore_count || 0;
+    const restoreCount = (thread as BoardThread & { restore_count?: number }).restore_count || 0;
     if (restoreCount >= 1) {
       throw new Error('Thread cannot be restored more than once');
     }
@@ -181,25 +185,30 @@ export class ThreadLifecycleUsecase {
     return await this.threadRepository.update(threadId, {
       isArchived: false,
       expiresAt: newExpiresAt,
-      restore_count: restoreCount + 1,
-      restored_at: new Date()
     });
   }
 
-  async getRestorableThreads(boardId: string, _userId?: string): Promise<Array<BoardThread & {
-    canRestore: boolean;
-    restoreCount: number;
-  }>> {
-    const archivedThreads = await this.threadRepository.findArchived(boardId);
-    
-    return archivedThreads.map(thread => {
+  async getRestorableThreads(
+    boardId: string
+  ): Promise<
+    Array<
+      BoardThread & {
+        canRestore: boolean;
+        restoreCount: number;
+      }
+    >
+  > {
+    const archivedThreads = await this.threadRepository.findByBoardId(boardId);
+    const filteredArchivedThreads = archivedThreads.filter(thread => thread.isArchived);
+
+    return filteredArchivedThreads.map((thread) => {
       const restoreCount = (thread as { restore_count?: number }).restore_count || 0;
       const canRestore = restoreCount === 0;
-      
+
       return {
         ...thread,
         canRestore,
-        restoreCount
+        restoreCount,
       };
     });
   }
@@ -214,7 +223,7 @@ export class ThreadLifecycleUsecase {
     const allThreads = await this.threadRepository.findByBoardId(''); // すべてのスレッド
     const now = new Date();
 
-    const activeThreads = allThreads.filter(t => !t.isArchived);
+    const activeThreads = allThreads.filter((t) => !t.isArchived);
     let expiringIn24Hours = 0;
     let expiringIn6Hours = 0;
     let expired = 0;
@@ -239,28 +248,28 @@ export class ThreadLifecycleUsecase {
       }
     }
 
-    const averageLifetime = activeThreads.length > 0 ? 
-      totalLifetimeHours / activeThreads.length : 0;
+    const averageLifetime =
+      activeThreads.length > 0 ? totalLifetimeHours / activeThreads.length : 0;
 
     return {
       totalActiveThreads: activeThreads.length,
       expiringIn24Hours,
       expiringIn6Hours,
       expired,
-      averageLifetime
+      averageLifetime,
     };
   }
 
   private groupThreadsByBoard(threads: BoardThread[]): Map<string, BoardThread[]> {
     const groups = new Map<string, BoardThread[]>();
-    
+
     for (const thread of threads) {
       if (!groups.has(thread.boardId)) {
         groups.set(thread.boardId, []);
       }
       groups.get(thread.boardId)!.push(thread);
     }
-    
+
     return groups;
   }
 }

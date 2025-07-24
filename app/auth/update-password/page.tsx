@@ -1,18 +1,18 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { 
-  AuthLayout, 
-  AuthForm, 
-  FormGroup, 
-  FormInput, 
-  ErrorMessage, 
-  AuthButton, 
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import {
+  AuthButton,
+  AuthForm,
+  AuthLayout,
   AuthLinks,
-  SuccessMessage 
+  ErrorMessage,
+  FormGroup,
+  FormInput,
+  SuccessMessage,
 } from '../../../components/AuthLayout';
 
 const supabase = createClientComponentClient();
@@ -29,7 +29,7 @@ function UpdatePasswordForm() {
     // URLからトークンを確認
     const accessToken = searchParams.get('access_token');
     const refreshToken = searchParams.get('refresh_token');
-    
+
     if (accessToken && refreshToken) {
       // トークンを使ってセッションを設定
       supabase.auth.setSession({
@@ -41,7 +41,7 @@ function UpdatePasswordForm() {
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!password.trim()) {
       setError('新しいパスワードを入力してください');
       return;
@@ -62,11 +62,11 @@ function UpdatePasswordForm() {
 
     try {
       const { error: updateError } = await supabase.auth.updateUser({
-        password: password.trim()
+        password: password.trim(),
       });
 
       if (updateError) {
-        setError('パスワードの更新に失敗しました: ' + updateError.message);
+        setError(`パスワードの更新に失敗しました: ${updateError.message}`);
         return;
       }
 
@@ -81,12 +81,8 @@ function UpdatePasswordForm() {
   if (success) {
     return (
       <SuccessMessage title="パスワード更新完了">
-        <p>
-          パスワードが正常に更新されました。
-        </p>
-        <p>
-          新しいパスワードでログインしてください。
-        </p>
+        <p>パスワードが正常に更新されました。</p>
+        <p>新しいパスワードでログインしてください。</p>
         <div className="success-actions">
           <Link href="/auth/login" className="auth-button primary">
             ログイン画面へ
@@ -103,7 +99,7 @@ function UpdatePasswordForm() {
     <AuthLayout
       title="パスワード更新"
       subtitle="新しいパスワードを入力してください"
-      backLink={{ href: "/auth/login", text: "ログイン画面に戻る" }}
+      backLink={{ href: '/auth/login', text: 'ログイン画面に戻る' }}
     >
       <AuthForm onSubmit={handleUpdatePassword}>
         <FormGroup label="新しいパスワード" htmlFor="password">

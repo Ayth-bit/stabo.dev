@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { checkLocationAccess } from '@/utils/locationCheck';
+import { useEffect, useState } from 'react';
 
 interface LocationGuardProps {
   children: React.ReactNode;
@@ -53,7 +53,7 @@ const LocationGuard: React.FC<LocationGuardProps> = ({ children, fallback }) => 
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="w-10 h-10 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-10 h-10 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-600">位置情報を確認しています...</p>
           <p className="text-sm text-gray-500 mt-2">
             このサービスは東京23区内でのみご利用いただけます
@@ -78,6 +78,7 @@ const LocationGuard: React.FC<LocationGuardProps> = ({ children, fallback }) => 
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
+              <title>位置情報アクセス制限</title>
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -92,13 +93,11 @@ const LocationGuard: React.FC<LocationGuardProps> = ({ children, fallback }) => 
               />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">
-            サービス利用制限
-          </h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">サービス利用制限</h2>
           <p className="text-gray-600 mb-4">
             {locationState.error || 'このサービスは東京23区内でのみご利用いただけます。'}
           </p>
-          
+
           {locationState.nearestWard && locationState.distanceToNearestWard && (
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
               <p className="text-sm text-gray-700">
@@ -109,9 +108,10 @@ const LocationGuard: React.FC<LocationGuardProps> = ({ children, fallback }) => 
               </p>
             </div>
           )}
-          
+
           <div className="space-y-3">
             <button
+              type="button"
               onClick={() => window.location.reload()}
               className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
             >

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import type { Board } from '@/app/types/domain';
 import Link from 'next/link';
-import { Board } from '@/app/types/domain';
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function BoardMapPage() {
   const params = useParams();
@@ -40,19 +40,27 @@ export default function BoardMapPage() {
 
   const getBoardTypeIcon = (type: string) => {
     switch (type) {
-      case 'station': return '[駅]';
-      case 'ward': return '[区]';
-      case 'park': return '[公園]';
-      default: return '[掲示板]';
+      case 'station':
+        return '[駅]';
+      case 'ward':
+        return '[区]';
+      case 'park':
+        return '[公園]';
+      default:
+        return '[掲示板]';
     }
   };
 
   const getBoardTypeLabel = (type: string) => {
     switch (type) {
-      case 'station': return '駅';
-      case 'ward': return '区';
-      case 'park': return '公園';
-      default: return '掲示板';
+      case 'station':
+        return '駅';
+      case 'ward':
+        return '区';
+      case 'park':
+        return '公園';
+      default:
+        return '掲示板';
     }
   };
 
@@ -60,7 +68,7 @@ export default function BoardMapPage() {
     return (
       <div className="map-page loading">
         <div className="loading-content">
-          <div className="spinner"></div>
+          <div className="spinner" />
           <p>地図を読み込み中...</p>
         </div>
       </div>
@@ -83,11 +91,14 @@ export default function BoardMapPage() {
 
   // アクセス範囲に基づいてズームレベルを決定
   let zoom = 15; // デフォルトズーム
-  if (board.accessRadius >= 3000) zoom = 12;      // 3km以上（区レベル）
-  else if (board.accessRadius >= 1500) zoom = 13; // 1.5km以上（駅レベル）
-  else if (board.accessRadius >= 1000) zoom = 14; // 1km以上（公園レベル）
+  if (board.accessRadius >= 3000)
+    zoom = 12; // 3km以上（区レベル）
+  else if (board.accessRadius >= 1500)
+    zoom = 13; // 1.5km以上（駅レベル）
+  else if (board.accessRadius >= 1000)
+    zoom = 14; // 1km以上（公園レベル）
   else zoom = 15; // それ以下
-  
+
   const mapSrc = `https://maps.google.com/maps?q=${board.lat},${board.lng}&t=m&z=${zoom}&output=embed&hl=ja`;
 
   return (
@@ -97,14 +108,10 @@ export default function BoardMapPage() {
           ← 掲示板一覧に戻る
         </Link>
         <div className="board-info">
-          <div className="board-icon">
-            {getBoardTypeIcon(board.type)}
-          </div>
+          <div className="board-icon">{getBoardTypeIcon(board.type)}</div>
           <div className="board-details">
             <h1>{board.name}</h1>
-            <span className="board-type">
-              {getBoardTypeLabel(board.type)}
-            </span>
+            <span className="board-type">{getBoardTypeLabel(board.type)}</span>
           </div>
         </div>
         <p className="description">{board.description}</p>
@@ -120,7 +127,7 @@ export default function BoardMapPage() {
           loading="lazy"
           referrerPolicy="no-referrer-when-downgrade"
           title={`${board.name}の地図`}
-        ></iframe>
+        />
       </div>
 
       <div className="location-info">
@@ -143,6 +150,7 @@ export default function BoardMapPage() {
 
       <div className="actions">
         <button
+          type="button"
           className="button secondary"
           onClick={() => {
             const googleMapsUrl = `https://maps.google.com/maps?q=${board.lat},${board.lng}&t=m&z=15`;
@@ -152,6 +160,7 @@ export default function BoardMapPage() {
           Googleマップで開く
         </button>
         <button
+          type="button"
           className="button tertiary"
           onClick={() => {
             if (navigator.share) {

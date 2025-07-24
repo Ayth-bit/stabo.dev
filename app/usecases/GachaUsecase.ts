@@ -1,8 +1,8 @@
 // Gacha Usecase - ガチャ関連のビジネスロジック
 // ====================================
 
-import { Sticker, GachaResult, StickerRarity } from '@/app/types/domain';
-import { IGachaRepository, IUserRepository } from '@/app/repositories/interfaces';
+import type { IGachaRepository, IUserRepository } from '@/app/repositories/interfaces';
+import type { GachaResult, Sticker, StickerRarity } from '@/app/types/domain';
 
 export interface GachaConfig {
   commonCost: number;
@@ -19,8 +19,8 @@ export class GachaUsecase {
     rareCost: 300,
     superRareCost: 500,
     commonRate: 0.7, // 70%
-    rareRate: 0.25,  // 25%
-    superRareRate: 0.05 // 5%
+    rareRate: 0.25, // 25%
+    superRareRate: 0.05, // 5%
   };
 
   constructor(
@@ -81,21 +81,20 @@ export class GachaUsecase {
       // プレミアムガチャは高レア率アップ
       if (random < this.config.superRareRate * 2) {
         return 3; // スーパーレア
-      } else if (random < (this.config.superRareRate * 2) + (this.config.rareRate * 1.5)) {
-        return 2; // レア
-      } else {
-        return 1; // コモン
       }
-    } else {
-      // 通常ガチャ
-      if (random < this.config.superRareRate) {
-        return 3; // スーパーレア
-      } else if (random < this.config.superRareRate + this.config.rareRate) {
+      if (random < this.config.superRareRate * 2 + this.config.rareRate * 1.5) {
         return 2; // レア
-      } else {
-        return 1; // コモン
       }
+      return 1; // コモン
     }
+    // 通常ガチャ
+    if (random < this.config.superRareRate) {
+      return 3; // スーパーレア
+    }
+    if (random < this.config.superRareRate + this.config.rareRate) {
+      return 2; // レア
+    }
+    return 1; // コモン
   }
 
   async getGachaRates(gachaType: 'normal' | 'premium'): Promise<{
@@ -111,15 +110,14 @@ export class GachaUsecase {
         common: this.config.commonRate * 0.6, // プレミアムでは下がる
         rare: this.config.rareRate * 1.5, // プレミアムでは上がる
         superRare: this.config.superRareRate * 2, // プレミアムでは2倍
-        cost
-      };
-    } else {
-      return {
-        common: this.config.commonRate,
-        rare: this.config.rareRate,
-        superRare: this.config.superRareRate,
-        cost
+        cost,
       };
     }
+    return {
+      common: this.config.commonRate,
+      rare: this.config.rareRate,
+      superRare: this.config.superRareRate,
+      cost,
+    };
   }
 }

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useEffect, useState } from 'react';
 
 interface ThreadLifecycleManagerProps {
   threadId?: string;
@@ -26,14 +26,14 @@ const ThreadLifecycleManager: React.FC<ThreadLifecycleManagerProps> = ({
   isArchived = false,
   restoreCount = 0,
   onRestore,
-  className = ''
+  className = '',
 }) => {
   const [status, setStatus] = useState<ThreadStatus>({
     remainingHours: 0,
     fadeFactor: 1,
     isExpiring: false,
     isExpired: false,
-    canRestore: false
+    canRestore: false,
   });
   const [isRestoring, setIsRestoring] = useState(false);
   const supabase = createClientComponentClient();
@@ -57,7 +57,7 @@ const ThreadLifecycleManager: React.FC<ThreadLifecycleManagerProps> = ({
         fadeFactor,
         isExpiring,
         isExpired,
-        canRestore
+        canRestore,
       });
     };
 
@@ -85,8 +85,8 @@ const ThreadLifecycleManager: React.FC<ThreadLifecycleManagerProps> = ({
         body: JSON.stringify({
           action: 'restore_thread',
           threadId,
-          userId: user.user.id
-        })
+          userId: user.user.id,
+        }),
       });
 
       if (!response.ok) {
@@ -98,7 +98,7 @@ const ThreadLifecycleManager: React.FC<ThreadLifecycleManagerProps> = ({
       if (onRestore) {
         onRestore(threadId);
       }
-      
+
       // 成功通知
       alert('スレッドが復元されました！72時間後に再度期限切れになります。');
     } catch (error) {
@@ -113,13 +113,13 @@ const ThreadLifecycleManager: React.FC<ThreadLifecycleManagerProps> = ({
     if (hours < 1) {
       const minutes = Math.floor(hours * 60);
       return `${minutes}分`;
-    } else if (hours < 24) {
-      return `${Math.floor(hours)}時間${Math.floor((hours % 1) * 60)}分`;
-    } else {
-      const days = Math.floor(hours / 24);
-      const remainingHours = Math.floor(hours % 24);
-      return `${days}日${remainingHours}時間`;
     }
+    if (hours < 24) {
+      return `${Math.floor(hours)}時間${Math.floor((hours % 1) * 60)}分`;
+    }
+    const days = Math.floor(hours / 24);
+    const remainingHours = Math.floor(hours % 24);
+    return `${days}日${remainingHours}時間`;
   };
 
   if (isArchived) {
@@ -130,6 +130,7 @@ const ThreadLifecycleManager: React.FC<ThreadLifecycleManagerProps> = ({
         </div>
         {status.canRestore && (
           <button
+            type="button"
             onClick={handleRestore}
             disabled={isRestoring}
             className="px-3 py-1 bg-blue-500 text-white border-none rounded text-xs cursor-pointer ml-2 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
@@ -138,9 +139,7 @@ const ThreadLifecycleManager: React.FC<ThreadLifecycleManagerProps> = ({
           </button>
         )}
         {restoreCount > 0 && (
-          <div className="mt-1 text-xs text-gray-500">
-            このスレッドは既に復元されています
-          </div>
+          <div className="mt-1 text-xs text-gray-500">このスレッドは既に復元されています</div>
         )}
       </div>
     );
@@ -148,34 +147,34 @@ const ThreadLifecycleManager: React.FC<ThreadLifecycleManagerProps> = ({
 
   if (status.isExpired) {
     return (
-      <div className={`p-2 rounded-md bg-red-50 border border-red-200 text-sm opacity-70 ${className}`}>
+      <div
+        className={`p-2 rounded-md bg-red-50 border border-red-200 text-sm opacity-70 ${className}`}
+      >
         <div className="inline-block px-2 py-0.5 bg-red-600 text-white rounded text-xs mr-2">
           期限切れ
         </div>
-        <span className="text-red-600">
-          このスレッドは期限切れです
-        </span>
+        <span className="text-red-600">このスレッドは期限切れです</span>
       </div>
     );
   }
 
   return (
-    <div 
+    <div
       className={`p-2 rounded-md text-sm transition-opacity duration-300 ease-in-out ${
-        status.isExpiring 
-          ? 'bg-orange-50 border border-orange-200' 
+        status.isExpiring
+          ? 'bg-orange-50 border border-orange-200'
           : 'bg-blue-50 border border-blue-200'
       } ${className}`}
       style={{ opacity: status.fadeFactor }}
     >
-      <div className={`inline-block px-2 py-0.5 text-white rounded text-xs mr-2 ${
-        status.isExpiring ? 'bg-amber-500' : 'bg-green-500'
-      }`}>
+      <div
+        className={`inline-block px-2 py-0.5 text-white rounded text-xs mr-2 ${
+          status.isExpiring ? 'bg-amber-500' : 'bg-green-500'
+        }`}
+      >
         {status.isExpiring ? '期限間近' : 'アクティブ'}
       </div>
-      <span className={`font-medium ${
-        status.isExpiring ? 'text-amber-600' : 'text-blue-600'
-      }`}>
+      <span className={`font-medium ${status.isExpiring ? 'text-amber-600' : 'text-blue-600'}`}>
         残り {formatRemainingTime(status.remainingHours)}
       </span>
     </div>

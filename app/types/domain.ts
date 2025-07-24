@@ -41,7 +41,7 @@ export interface Board {
   lat: number;
   lng: number;
   accessRadius: number; // 投稿可能範囲 (300m)
-  viewRadius?: number;  // 閲覧可能範囲 (1500m) - デフォルト
+  viewRadius?: number; // 閲覧可能範囲 (1500m) - デフォルト
   description?: string;
   createdAt: Date;
 }
@@ -98,13 +98,9 @@ export interface GachaResult {
 
 // Enums
 export type StickerRarity = 1 | 2 | 3; // 1:コモン, 2:レア, 3:スーパーレア
-export type StickerEffectType = "radius_boost" | null;
-export type BoardType = "station" | "ward" | "park";
-export type NotificationType =
-  | "new_board"
-  | "chat_message"
-  | "sticker_drop"
-  | "thread_like";
+export type StickerEffectType = 'radius_boost' | null;
+export type BoardType = 'station' | 'ward' | 'park';
+export type NotificationType = 'new_board' | 'chat_message' | 'sticker_drop' | 'thread_like';
 
 // Location
 export interface Location {

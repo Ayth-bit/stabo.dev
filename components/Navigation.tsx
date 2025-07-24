@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useAuth } from './AuthProvider';
 import { useState } from 'react';
+import { useAuth } from './AuthProvider';
 
 export function Navigation() {
   const { user, signOut } = useAuth();
@@ -14,37 +14,48 @@ export function Navigation() {
   };
 
   return (
-    <nav className="navigation">
-      <div className="nav-container">
-        <Link href="/" className="nav-logo">
+    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+      <div className="max-w-7xl mx-auto flex justify-between items-center px-4 py-4">
+        {/* Logo */}
+        <Link 
+          href="/" 
+          className="text-2xl font-bold text-primary hover:text-accent transition-colors duration-200 md:text-xl"
+        >
           stabo.dev
         </Link>
 
-        <div className="nav-links">
-          <Link href="/boards" className="nav-link">
+        {/* Navigation Links */}
+        <div className="flex items-center gap-4">
+          <Link 
+            href="/boards" 
+            className="text-secondary hover:text-primary hover:bg-gray-50 px-4 py-2 rounded-lg transition-all duration-200"
+          >
             掲示板一覧
           </Link>
 
           {user ? (
-            <div className="user-menu">
+            <div className="relative">
               <button 
-                className="user-button"
+                type="button" 
+                className="btn-secondary text-sm"
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
               >
                 {user.user_metadata?.display_name || 'ユーザー'}
               </button>
+              
               {isMenuOpen && (
-                <div className="user-dropdown">
-                  <Link 
-                    href="/mypage" 
-                    className="dropdown-item"
+                <div className="absolute top-full right-0 mt-2 card shadow-lg min-w-[150px] z-10">
+                  <Link
+                    href="/mypage"
+                    className="block w-full px-4 py-3 text-primary text-sm hover:bg-gray-50 transition-colors duration-200 no-underline"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     マイページ
                   </Link>
                   <button 
-                    onClick={handleSignOut}
-                    className="dropdown-item logout-button"
+                    type="button" 
+                    onClick={handleSignOut} 
+                    className="block w-full px-4 py-3 text-red-600 text-sm hover:bg-red-50 transition-colors duration-200 border-t border-gray-200 text-left bg-transparent border-0 cursor-pointer"
                   >
                     ログアウト
                   </button>
@@ -52,165 +63,23 @@ export function Navigation() {
               )}
             </div>
           ) : (
-            <div className="auth-links">
-              <Link href="/auth/login" className="nav-link">
+            <div className="flex items-center gap-2 md:flex-col md:gap-1">
+              <Link 
+                href="/auth/login" 
+                className="text-secondary hover:text-primary hover:bg-gray-50 px-4 py-2 rounded-lg transition-all duration-200 md:px-3 md:py-1.5 md:text-sm"
+              >
                 ログイン
               </Link>
-              <Link href="/auth/register" className="nav-button">
+              <Link 
+                href="/auth/register" 
+                className="btn-primary text-sm no-underline md:px-3 md:py-1.5"
+              >
                 新規登録
               </Link>
             </div>
           )}
         </div>
       </div>
-
-      <style jsx>{`
-        .navigation {
-          background: white;
-          border-bottom: 1px solid #e9ecef;
-          position: sticky;
-          top: 0;
-          z-index: 1000;
-        }
-
-        .nav-container {
-          max-width: 1200px;
-          margin: 0 auto;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 1rem;
-        }
-
-        .nav-logo {
-          font-size: 1.5rem;
-          font-weight: bold;
-          color: #333;
-          text-decoration: none;
-        }
-
-        .nav-logo:hover {
-          color: #667eea;
-        }
-
-        .nav-links {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-        }
-
-        .nav-link {
-          color: #666;
-          text-decoration: none;
-          padding: 0.5rem 1rem;
-          border-radius: 6px;
-          transition: all 0.2s;
-        }
-
-        .nav-link:hover {
-          color: #333;
-          background: #f8f9fa;
-        }
-
-        .nav-button {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          text-decoration: none;
-          padding: 0.5rem 1rem;
-          border-radius: 6px;
-          font-weight: 600;
-          transition: all 0.2s;
-        }
-
-        .nav-button:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
-        }
-
-        .auth-links {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-
-        .user-menu {
-          position: relative;
-        }
-
-        .user-button {
-          background: #f8f9fa;
-          border: 1px solid #dee2e6;
-          color: #333;
-          padding: 0.5rem 1rem;
-          border-radius: 6px;
-          cursor: pointer;
-          font-size: 0.875rem;
-          transition: all 0.2s;
-        }
-
-        .user-button:hover {
-          background: #e9ecef;
-        }
-
-        .user-dropdown {
-          position: absolute;
-          top: 100%;
-          right: 0;
-          background: white;
-          border: 1px solid #dee2e6;
-          border-radius: 6px;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-          min-width: 150px;
-          margin-top: 0.5rem;
-        }
-
-        .dropdown-item {
-          display: block;
-          width: 100%;
-          padding: 0.75rem 1rem;
-          color: #333;
-          text-decoration: none;
-          border: none;
-          background: none;
-          text-align: left;
-          font-size: 0.875rem;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-
-        .dropdown-item:hover {
-          background: #f8f9fa;
-        }
-
-        .logout-button {
-          border-top: 1px solid #dee2e6;
-          color: #dc3545;
-        }
-
-        .logout-button:hover {
-          background: #f8d7da;
-        }
-
-        @media (max-width: 768px) {
-          .nav-container {
-            padding: 0.75rem;
-          }
-          
-          .nav-logo {
-            font-size: 1.25rem;
-          }
-          
-          .auth-links {
-            flex-direction: column;
-            gap: 0.25rem;
-          }
-          
-          .nav-link, .nav-button {
-            padding: 0.4rem 0.8rem;
-            font-size: 0.875rem;
-          }
-        }
-      `}</style>
     </nav>
   );
 }

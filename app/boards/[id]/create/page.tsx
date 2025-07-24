@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import type { Board } from '@/app/types/domain';
 import Link from 'next/link';
-import { Board } from '@/app/types/domain';
+import { useParams, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 
 export default function CreateThreadPage() {
   const params = useParams();
@@ -11,18 +11,18 @@ export default function CreateThreadPage() {
   const boardId = params.id as string;
 
   const [board, setBoard] = useState<Board | null>(null);
-  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [canAccess, setCanAccess] = useState(false);
-  
+
   // フォームの状態
   const [content, setContent] = useState('');
   const [useSticker, setUseSticker] = useState(false);
   const [expiryDays, setExpiryDays] = useState(3);
 
-  const getCurrentLocation = () => {
+  const getCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setError('このブラウザは位置情報をサポートしていません');
       return;
@@ -32,14 +32,14 @@ export default function CreateThreadPage() {
       (position) => {
         setUserLocation({
           lat: position.coords.latitude,
-          lng: position.coords.longitude
+          lng: position.coords.longitude,
         });
       },
       () => {
         setError('位置情報の取得に失敗しました');
       }
     );
-  };
+  }, []);
 
   const fetchBoardData = useCallback(async () => {
     try {
@@ -57,34 +57,34 @@ export default function CreateThreadPage() {
     }
   }, [boardId]);
 
-  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const calculateDistance = useCallback((lat1: number, lng1: number, lat2: number, lng2: number): number => {
     const R = 6371000;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
+
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
-  };
+  }, []);
 
   const checkAccess = useCallback(() => {
     if (!board || !userLocation) return;
-    
-    const distance = calculateDistance(
-      userLocation.lat, userLocation.lng,
-      board.lat, board.lng
-    );
-    
+
+    const distance = calculateDistance(userLocation.lat, userLocation.lng, board.lat, board.lng);
+
     setCanAccess(distance <= board.accessRadius);
-  }, [board, userLocation]);
+  }, [board, userLocation, calculateDistance]);
 
   useEffect(() => {
     getCurrentLocation();
     fetchBoardData();
-  }, [boardId, fetchBoardData]);
+  }, [fetchBoardData, getCurrentLocation]);
 
   useEffect(() => {
     if (board && userLocation) {
@@ -94,7 +94,7 @@ export default function CreateThreadPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!content.trim()) {
       setError('投稿内容を入力してください');
       return;
@@ -118,7 +118,7 @@ export default function CreateThreadPage() {
           content: content.trim(),
           useSticker,
           expiryDays,
-          userLocation
+          userLocation,
         }),
       });
 
@@ -139,19 +139,27 @@ export default function CreateThreadPage() {
 
   const getBoardTypeIcon = (type: string) => {
     switch (type) {
-      case 'station': return '[駅]';
-      case 'ward': return '[区]';
-      case 'park': return '[公園]';
-      default: return '[掲示板]';
+      case 'station':
+        return '[駅]';
+      case 'ward':
+        return '[区]';
+      case 'park':
+        return '[公園]';
+      default:
+        return '[掲示板]';
     }
   };
 
   const getBoardTypeLabel = (type: string) => {
     switch (type) {
-      case 'station': return '駅';
-      case 'ward': return '区';
-      case 'park': return '公園';
-      default: return '掲示板';
+      case 'station':
+        return '駅';
+      case 'ward':
+        return '区';
+      case 'park':
+        return '公園';
+      default:
+        return '掲示板';
     }
   };
 
@@ -159,7 +167,7 @@ export default function CreateThreadPage() {
     return (
       <div className="create-thread-page loading">
         <div className="loading-content">
-          <div className="spinner"></div>
+          <div className="spinner" />
           <p>掲示板情報を読み込み中...</p>
         </div>
       </div>
@@ -181,29 +189,26 @@ export default function CreateThreadPage() {
   }
 
   if (!canAccess && board && userLocation) {
-    const distance = calculateDistance(
-      userLocation.lat, userLocation.lng,
-      board.lat, board.lng
-    );
+    const distance = calculateDistance(userLocation.lat, userLocation.lng, board.lat, board.lng);
 
     return (
       <div className="create-thread-page">
         <div className="access-denied">
           <h2>[投稿禁止] 投稿できません</h2>
           <div className="board-info">
-            <span className="board-icon">
-              {getBoardTypeIcon(board.type)}
-            </span>
+            <span className="board-icon">{getBoardTypeIcon(board.type)}</span>
             <h3>{board.name}</h3>
           </div>
           <p>
-            この掲示板に投稿するには、{board.name}から{board.accessRadius}m以内にいる必要があります。
+            この掲示板に投稿するには、{board.name}から{board.accessRadius}
+            m以内にいる必要があります。
           </p>
           <p>
             現在地からは <strong>{Math.round(distance)}m</strong> 離れています。
           </p>
           <div className="actions">
-            <button 
+            <button
+              type="button"
               className="button secondary"
               onClick={() => {
                 const googleMapsUrl = `https://maps.google.com/maps?q=${board.lat},${board.lng}&t=m&z=15`;
@@ -227,12 +232,10 @@ export default function CreateThreadPage() {
         <Link href={`/boards/${boardId}`} className="back-link">
           ← {board?.name}掲示板に戻る
         </Link>
-        
+
         <div className="board-info">
           <div className="board-title">
-            <span className="board-icon">
-              {board && getBoardTypeIcon(board.type)}
-            </span>
+            <span className="board-icon">{board && getBoardTypeIcon(board.type)}</span>
             <div>
               <h1>新しい投稿</h1>
               <span className="board-type">
@@ -259,9 +262,7 @@ export default function CreateThreadPage() {
               maxLength={500}
               required
             />
-            <div className="char-count">
-              {content.length} / 500文字
-            </div>
+            <div className="char-count">{content.length} / 500文字</div>
           </div>
 
           <div className="form-options">
@@ -272,7 +273,7 @@ export default function CreateThreadPage() {
                   checked={useSticker}
                   onChange={(e) => setUseSticker(e.target.checked)}
                 />
-                <span className="checkmark"></span>
+                <span className="checkmark" />
                 ステッカーを使用する (投稿を目立たせる)
               </label>
               <p className="form-hint">
@@ -287,7 +288,7 @@ export default function CreateThreadPage() {
               <select
                 id="expiryDays"
                 value={expiryDays}
-                onChange={(e) => setExpiryDays(parseInt(e.target.value))}
+                onChange={(e) => setExpiryDays(Number.parseInt(e.target.value))}
                 className="form-select"
               >
                 <option value={1}>1日</option>
@@ -295,24 +296,18 @@ export default function CreateThreadPage() {
                 <option value={7}>7日</option>
                 <option value={14}>14日</option>
               </select>
-              <p className="form-hint">
-                期限が過ぎると投稿は自動的に削除されます
-              </p>
+              <p className="form-hint">期限が過ぎると投稿は自動的に削除されます</p>
             </div>
           </div>
 
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
+          {error && <div className="error-message">{error}</div>}
 
           <div className="form-actions">
             <Link href={`/boards/${boardId}`} className="button secondary">
               キャンセル
             </Link>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="button primary"
               disabled={submitting || !content.trim()}
             >

@@ -1,29 +1,27 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { 
-  AuthLayout, 
-  AuthForm, 
-  FormGroup, 
-  FormInput, 
-  ErrorMessage, 
-  AuthButton
+import * as React from 'react';
+import {
+  AuthButton,
+  AuthForm,
+  AuthLayout,
+  ErrorMessage,
+  FormGroup,
+  FormInput,
 } from '../../components/AuthLayout';
-
-const supabase = createClientComponentClient();
+import { supabase } from '../../lib/supabase';
 
 export default function AdminLoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
   const router = useRouter();
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email.trim() || !password.trim()) {
       setError('メールアドレスとパスワードを入力してください');
       return;
@@ -31,10 +29,10 @@ export default function AdminLoginPage() {
 
     // 管理者専用アカウントチェック（メールドメインベース）
     const adminEmails = ['admin@stabo.dev', 'admin@example.com'];
-    const isAdminEmail = adminEmails.some(adminEmail => 
-      email.trim().toLowerCase() === adminEmail.toLowerCase()
+    const isAdminEmail = adminEmails.some(
+      (adminEmail) => email.trim().toLowerCase() === adminEmail.toLowerCase()
     );
-    
+
     if (!isAdminEmail) {
       setError('管理者アカウントではありません');
       return;
@@ -74,11 +72,20 @@ export default function AdminLoginPage() {
     <AuthLayout
       title="管理者ログイン"
       subtitle="stabo.dev管理画面"
-      backLink={{ href: "/", text: "トップページに戻る" }}
+      backLink={{ href: '/', text: 'トップページに戻る' }}
     >
-      <div className="admin-notice">
-        <p>⚠️ 管理者専用ログインページです</p>
-        <p>一般ユーザーの方は<a href="/auth/login">こちら</a>からログインしてください</p>
+      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-6 text-center">
+        <p className="my-1 text-yellow-800 text-sm">⚠️ 管理者専用ログインページです</p>
+        <p className="my-1 text-yellow-800 text-sm">
+          一般ユーザーの方は
+          <a
+            href="/auth/login"
+            className="text-yellow-600 underline font-semibold hover:text-yellow-500"
+          >
+            こちら
+          </a>
+          からログインしてください
+        </p>
       </div>
 
       <AuthForm onSubmit={handleAdminLogin}>
@@ -112,33 +119,6 @@ export default function AdminLoginPage() {
           {loading ? 'ログイン中...' : '管理者ログイン'}
         </AuthButton>
       </AuthForm>
-
-      <style jsx>{`
-        .admin-notice {
-          background: #fff3cd;
-          border: 1px solid #ffeaa7;
-          border-radius: 6px;
-          padding: 1rem;
-          margin-bottom: 1.5rem;
-          text-align: center;
-        }
-
-        .admin-notice p {
-          margin: 0.25rem 0;
-          color: #856404;
-          font-size: 0.875rem;
-        }
-
-        .admin-notice a {
-          color: rgb(230, 168, 0);
-          text-decoration: underline;
-          font-weight: 600;
-        }
-
-        .admin-notice a:hover {
-          color: rgba(230, 168, 0, 0.8);
-        }
-      `}</style>
     </AuthLayout>
   );
 }

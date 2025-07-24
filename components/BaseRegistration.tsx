@@ -1,9 +1,7 @@
 'use client';
 
+import { supabase } from '@/lib/supabase';
 import { useState } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-
-const supabase = createClientComponentClient();
 
 interface BaseRegistrationProps {
   userId: string;
@@ -39,7 +37,7 @@ export function BaseRegistration({ userId, currentBase, onUpdate }: BaseRegistra
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        
+
         // 東京23区内かチェック（簡易的な範囲チェック）
         if (latitude < 35.5 || latitude > 35.9 || longitude < 139.3 || longitude > 139.9) {
           setError('東京23区外では拠点を登録できません');
@@ -50,7 +48,7 @@ export function BaseRegistration({ userId, currentBase, onUpdate }: BaseRegistra
         setLocation({
           lat: latitude,
           lng: longitude,
-          address: `緯度: ${latitude.toFixed(6)}, 経度: ${longitude.toFixed(6)}`
+          address: `緯度: ${latitude.toFixed(6)}, 経度: ${longitude.toFixed(6)}`,
         });
         setShowForm(true);
         setIsRegistering(false);
@@ -59,7 +57,9 @@ export function BaseRegistration({ userId, currentBase, onUpdate }: BaseRegistra
         console.error('位置情報取得エラー:', error);
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            setError('位置情報の使用が拒否されました。ブラウザの設定で位置情報を許可してください。');
+            setError(
+              '位置情報の使用が拒否されました。ブラウザの設定で位置情報を許可してください。'
+            );
             break;
           case error.POSITION_UNAVAILABLE:
             setError('位置情報が取得できませんでした。');
@@ -76,7 +76,7 @@ export function BaseRegistration({ userId, currentBase, onUpdate }: BaseRegistra
       {
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 300000
+        maximumAge: 300000,
       }
     );
   };
@@ -97,17 +97,16 @@ export function BaseRegistration({ userId, currentBase, onUpdate }: BaseRegistra
 
       if (!existingUser) {
         // ユーザーが存在しない場合、まず作成
-        const { error: insertError } = await supabase
-          .from('users_extended')
-          .insert({
-            id: userId,
-            display_name: 'ユーザー',
-            qr_code: `qr_${userId.slice(0, 8)}_${Date.now()}`,
-            home_base_lat: location.lat,
-            home_base_lng: location.lng,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
+        const { error: insertError } = await supabase.from('users_extended').insert({
+          id: userId,
+          display_name: 'ユーザー',
+          qr_code: `qr_${userId.slice(0, 8)}_${Date.now()}`,
+          home_base_lat: location.lat,
+          home_base_lng: location.lng,
+          base_radius: radius,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
 
         if (insertError) {
           throw insertError;
@@ -119,7 +118,8 @@ export function BaseRegistration({ userId, currentBase, onUpdate }: BaseRegistra
           .update({
             home_base_lat: location.lat,
             home_base_lng: location.lng,
-            updated_at: new Date().toISOString()
+            base_radius: radius,
+            updated_at: new Date().toISOString(),
           })
           .eq('id', userId);
 
@@ -133,10 +133,11 @@ export function BaseRegistration({ userId, currentBase, onUpdate }: BaseRegistra
       setLocation(null);
     } catch (err) {
       console.error('拠点登録エラー:', err);
-      const errorMessage = err && typeof err === 'object' && 'message' in err 
-        ? (err as Error).message 
-        : '不明なエラーが発生しました';
-      setError('拠点の登録に失敗しました: ' + errorMessage);
+      const errorMessage =
+        err && typeof err === 'object' && 'message' in err
+          ? (err as Error).message
+          : '不明なエラーが発生しました';
+      setError(`拠点の登録に失敗しました: ${errorMessage}`);
     } finally {
       setIsRegistering(false);
     }
@@ -154,7 +155,7 @@ export function BaseRegistration({ userId, currentBase, onUpdate }: BaseRegistra
         .update({
           home_base_lat: null,
           home_base_lng: null,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', userId);
 
@@ -165,7 +166,7 @@ export function BaseRegistration({ userId, currentBase, onUpdate }: BaseRegistra
       onUpdate();
     } catch (err) {
       console.error('拠点削除エラー:', err);
-      setError('拠点の削除に失敗しました: ' + (err as Error).message);
+      setError(`拠点の削除に失敗しました: ${(err as Error).message}`);
     } finally {
       setIsRegistering(false);
     }
@@ -173,33 +174,27 @@ export function BaseRegistration({ userId, currentBase, onUpdate }: BaseRegistra
 
   return (
     <div className="base-registration">
-      {error && (
-        <div className="error-message">
-          {error}
-        </div>
-      )}
+      {error && <div className="error-message">{error}</div>}
 
       {currentBase ? (
         <div className="current-base">
           <h4>登録済み拠点</h4>
           <div className="base-details">
-            <p><strong>緯度:</strong> {currentBase.lat.toFixed(6)}</p>
-            <p><strong>経度:</strong> {currentBase.lng.toFixed(6)}</p>
-            <p><strong>活動半径:</strong> {currentBase.radius}m</p>
+            <p>
+              <strong>緯度:</strong> {currentBase.lat.toFixed(6)}
+            </p>
+            <p>
+              <strong>経度:</strong> {currentBase.lng.toFixed(6)}
+            </p>
+            <p>
+              <strong>活動半径:</strong> {currentBase.radius}m
+            </p>
           </div>
           <div className="base-actions">
-            <button 
-              className="change-button"
-              onClick={getCurrentLocation}
-              disabled={isRegistering}
-            >
+            <button type="button" className="change-button" onClick={getCurrentLocation} disabled={isRegistering}>
               {isRegistering ? '位置取得中...' : '拠点を変更'}
             </button>
-            <button 
-              className="remove-button"
-              onClick={removeBase}
-              disabled={isRegistering}
-            >
+            <button type="button" className="remove-button" onClick={removeBase} disabled={isRegistering}>
               拠点を削除
             </button>
           </div>
@@ -207,12 +202,10 @@ export function BaseRegistration({ userId, currentBase, onUpdate }: BaseRegistra
       ) : (
         <div className="no-base">
           <h4>拠点未登録</h4>
-          <p>現在地を活動拠点として登録できます。拠点は通知の配信やコンテンツのフィルタリングに使用されます。</p>
-          <button 
-            className="register-button"
-            onClick={getCurrentLocation}
-            disabled={isRegistering}
-          >
+          <p>
+            現在地を活動拠点として登録できます。拠点は通知の配信やコンテンツのフィルタリングに使用されます。
+          </p>
+          <button type="button" className="register-button" onClick={getCurrentLocation} disabled={isRegistering}>
             {isRegistering ? '位置取得中...' : '現在地を拠点として登録'}
           </button>
         </div>
@@ -222,10 +215,12 @@ export function BaseRegistration({ userId, currentBase, onUpdate }: BaseRegistra
         <div className="registration-form">
           <h4>拠点登録確認</h4>
           <div className="location-info">
-            <p><strong>登録予定の拠点:</strong></p>
+            <p>
+              <strong>登録予定の拠点:</strong>
+            </p>
             <p>{location.address}</p>
           </div>
-          
+
           <div className="radius-setting">
             <label htmlFor="radius">活動半径:</label>
             <select
@@ -239,20 +234,15 @@ export function BaseRegistration({ userId, currentBase, onUpdate }: BaseRegistra
               <option value={2000}>2km</option>
               <option value={3000}>3km</option>
             </select>
-            <p className="radius-note">
-              この範囲内の通知や情報を優先的に受け取れます
-            </p>
+            <p className="radius-note">この範囲内の通知や情報を優先的に受け取れます</p>
           </div>
 
           <div className="form-actions">
-            <button 
-              className="confirm-button"
-              onClick={registerBase}
-              disabled={isRegistering}
-            >
+            <button type="button" className="confirm-button" onClick={registerBase} disabled={isRegistering}>
               {isRegistering ? '登録中...' : '拠点を登録'}
             </button>
-            <button 
+            <button
+              type="button"
               className="cancel-button"
               onClick={() => {
                 setShowForm(false);

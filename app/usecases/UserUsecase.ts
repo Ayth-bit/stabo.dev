@@ -1,8 +1,8 @@
 // User Usecase - ユーザー関連のビジネスロジック
 // ====================================
 
-import { User, Location } from '@/app/types/domain';
-import { IUserRepository } from '@/app/repositories/interfaces';
+import type { IUserRepository } from '@/app/repositories/interfaces';
+import type { Location, User } from '@/app/types/domain';
 
 export class UserUsecase {
   constructor(private userRepository: IUserRepository) {}
@@ -11,13 +11,9 @@ export class UserUsecase {
     return await this.userRepository.findById(id);
   }
 
-  async createUserProfile(
-    id: string,
-    displayName: string,
-    avatarUrl?: string
-  ): Promise<User> {
+  async createUserProfile(id: string, displayName: string, avatarUrl?: string): Promise<User> {
     const qrCode = this.generateQRCode(id);
-    
+
     return await this.userRepository.create({
       displayName,
       avatarUrl: avatarUrl || null,
@@ -26,7 +22,7 @@ export class UserUsecase {
       baseRadius: 1000,
       isCreator: false,
       qrCode,
-      points: 0
+      points: 0,
     });
   }
 
@@ -37,11 +33,7 @@ export class UserUsecase {
     return await this.userRepository.update(id, updates);
   }
 
-  async setUserBase(
-    id: string,
-    location: Location,
-    radius: number
-  ): Promise<User> {
+  async setUserBase(id: string, location: Location, radius: number): Promise<User> {
     if (radius < 500 || radius > 5000) {
       throw new Error('Base radius must be between 500m and 5000m');
     }
@@ -49,7 +41,7 @@ export class UserUsecase {
     return await this.userRepository.update(id, {
       baseLat: location.lat,
       baseLng: location.lng,
-      baseRadius: radius
+      baseRadius: radius,
     });
   }
 

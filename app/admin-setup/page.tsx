@@ -1,20 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import * as React from 'react';
 
 export default function AdminSetupPage() {
-  const [password, setPassword] = useState('admin123');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [adminStatus, setAdminStatus] = useState<{
+  const [password, setPassword] = React.useState('admin123');
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [success, setSuccess] = React.useState<string | null>(null);
+  const [adminStatus, setAdminStatus] = React.useState<{
     exists: boolean;
     hasProfile: boolean;
-    user?: any;
+    user?: {
+      id: string;
+      email?: string;
+      [key: string]: unknown;
+    };
   } | null>(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     checkAdminStatus();
   }, []);
 
@@ -32,7 +36,7 @@ export default function AdminSetupPage() {
 
   const createAdminUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!password.trim()) {
       setError('パスワードを入力してください');
       return;
@@ -75,17 +79,17 @@ export default function AdminSetupPage() {
       <div className="max-w-md w-full bg-white rounded-lg shadow-md p-6">
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-gray-800 mb-2">管理者セットアップ</h1>
-          <p className="text-gray-600 text-sm">
-            stabo.dev 管理者アカウントの作成
-          </p>
+          <p className="text-gray-600 text-sm">stabo.dev 管理者アカウントの作成</p>
         </div>
 
         {adminStatus && (
-          <div className={`mb-6 p-4 rounded-lg ${
-            adminStatus.exists 
-              ? 'bg-green-50 border border-green-200' 
-              : 'bg-yellow-50 border border-yellow-200'
-          }`}>
+          <div
+            className={`mb-6 p-4 rounded-lg ${
+              adminStatus.exists
+                ? 'bg-green-50 border border-green-200'
+                : 'bg-yellow-50 border border-yellow-200'
+            }`}
+          >
             <h3 className="font-semibold mb-2">現在の状態:</h3>
             {adminStatus.exists ? (
               <div className="text-green-700 text-sm">
@@ -95,8 +99,8 @@ export default function AdminSetupPage() {
                   <strong>Email:</strong> {adminStatus.user?.email}
                 </p>
                 <div className="mt-4">
-                  <Link 
-                    href="/auth/login" 
+                  <Link
+                    href="/auth/login"
                     className="inline-block px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
                   >
                     ログインページへ
@@ -104,9 +108,7 @@ export default function AdminSetupPage() {
                 </div>
               </div>
             ) : (
-              <p className="text-yellow-700 text-sm">
-                ⚠️ 管理者ユーザーが作成されていません
-              </p>
+              <p className="text-yellow-700 text-sm">⚠️ 管理者ユーザーが作成されていません</p>
             )}
           </div>
         )}
@@ -140,9 +142,7 @@ export default function AdminSetupPage() {
                 disabled={loading}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
-              <p className="mt-1 text-xs text-gray-500">
-                デフォルト: admin123（変更可能）
-              </p>
+              <p className="mt-1 text-xs text-gray-500">デフォルト: admin123（変更可能）</p>
             </div>
 
             {error && (
@@ -168,10 +168,7 @@ export default function AdminSetupPage() {
         )}
 
         <div className="mt-6 pt-4 border-t border-gray-200 text-center">
-          <Link 
-            href="/" 
-            className="text-blue-500 hover:text-blue-600 text-sm"
-          >
+          <Link href="/" className="text-blue-500 hover:text-blue-600 text-sm">
             トップページに戻る
           </Link>
         </div>

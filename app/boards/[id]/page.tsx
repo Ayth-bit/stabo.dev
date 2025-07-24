@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'next/navigation';
-import Link from 'next/link';
-import { Board, BoardThread } from '@/app/types/domain';
+import type { Board, BoardThread } from '@/app/types/domain';
 import ThreadLifecycleManager from '@/components/ThreadLifecycleManager';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 
 export default function BoardDetailPage() {
   const params = useParams();
@@ -12,12 +12,12 @@ export default function BoardDetailPage() {
 
   const [board, setBoard] = useState<Board | null>(null);
   const [threads, setThreads] = useState<BoardThread[]>([]);
-  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [canAccess, setCanAccess] = useState(false);
 
-  const getCurrentLocation = () => {
+  const getCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setError('このブラウザは位置情報をサポートしていません');
       return;
@@ -27,14 +27,14 @@ export default function BoardDetailPage() {
       (position) => {
         setUserLocation({
           lat: position.coords.latitude,
-          lng: position.coords.longitude
+          lng: position.coords.longitude,
         });
       },
       () => {
         setError('位置情報の取得に失敗しました');
       }
     );
-  };
+  }, []);
 
   const fetchBoardData = useCallback(async () => {
     try {
@@ -64,35 +64,35 @@ export default function BoardDetailPage() {
     }
   }, [boardId]);
 
-  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const calculateDistance = useCallback((lat1: number, lng1: number, lat2: number, lng2: number): number => {
     const R = 6371000;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
+
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
-  };
+  }, []);
 
   const checkAccess = useCallback(() => {
     if (!board || !userLocation) return;
-    
-    const distance = calculateDistance(
-      userLocation.lat, userLocation.lng,
-      board.lat, board.lng
-    );
-    
+
+    const distance = calculateDistance(userLocation.lat, userLocation.lng, board.lat, board.lng);
+
     setCanAccess(distance <= board.accessRadius);
-  }, [board, userLocation]);
+  }, [board, userLocation, calculateDistance]);
 
   useEffect(() => {
     getCurrentLocation();
     fetchBoardData();
     fetchThreads();
-  }, [boardId, fetchBoardData, fetchThreads]);
+  }, [fetchBoardData, fetchThreads, getCurrentLocation]);
 
   useEffect(() => {
     if (board && userLocation) {
@@ -102,19 +102,27 @@ export default function BoardDetailPage() {
 
   const getBoardTypeIcon = (type: string) => {
     switch (type) {
-      case 'station': return '[駅]';
-      case 'ward': return '[区]';
-      case 'park': return '[公園]';
-      default: return '[掲示板]';
+      case 'station':
+        return '[駅]';
+      case 'ward':
+        return '[区]';
+      case 'park':
+        return '[公園]';
+      default:
+        return '[掲示板]';
     }
   };
 
   const getBoardTypeLabel = (type: string) => {
     switch (type) {
-      case 'station': return '駅';
-      case 'ward': return '区';
-      case 'park': return '公園';
-      default: return '掲示板';
+      case 'station':
+        return '駅';
+      case 'ward':
+        return '区';
+      case 'park':
+        return '公園';
+      default:
+        return '掲示板';
     }
   };
 
@@ -135,7 +143,7 @@ export default function BoardDetailPage() {
     return (
       <div className="board-detail-page loading">
         <div className="loading-content">
-          <div className="spinner"></div>
+          <div className="spinner" />
           <p>掲示板を読み込み中...</p>
         </div>
       </div>
@@ -156,8 +164,9 @@ export default function BoardDetailPage() {
     );
   }
 
-  const distance = userLocation ? 
-    calculateDistance(userLocation.lat, userLocation.lng, board.lat, board.lng) : 0;
+  const distance = userLocation
+    ? calculateDistance(userLocation.lat, userLocation.lng, board.lat, board.lng)
+    : 0;
 
   return (
     <div className="board-detail-page">
@@ -166,17 +175,13 @@ export default function BoardDetailPage() {
           <Link href="/boards" className="back-link">
             ← 掲示板一覧
           </Link>
-          
+
           <div className="board-info">
             <div className="board-title">
-              <span className="board-icon">
-                {getBoardTypeIcon(board.type)}
-              </span>
+              <span className="board-icon">{getBoardTypeIcon(board.type)}</span>
               <div>
                 <h1>{board.name}</h1>
-                <span className="board-type">
-                  {getBoardTypeLabel(board.type)}掲示板
-                </span>
+                <span className="board-type">{getBoardTypeLabel(board.type)}掲示板</span>
               </div>
             </div>
 
@@ -209,11 +214,12 @@ export default function BoardDetailPage() {
         <div className="access-warning">
           <h3>[アクセス禁止] この掲示板にはアクセスできません</h3>
           <p>
-            この掲示板を利用するには、{board.name}から{board.accessRadius}m以内にいる必要があります。
-            現在地からは{Math.round(distance)}m離れています。
+            この掲示板を利用するには、{board.name}から{board.accessRadius}
+            m以内にいる必要があります。 現在地からは{Math.round(distance)}m離れています。
           </p>
           <div className="warning-actions">
-            <button 
+            <button
+              type="button"
               className="button secondary"
               onClick={() => {
                 const googleMapsUrl = `https://maps.google.com/maps?q=${board.lat},${board.lng}&t=m&z=15`;
@@ -222,7 +228,8 @@ export default function BoardDetailPage() {
             >
               地図で場所を確認
             </button>
-            <button 
+            <button
+              type="button"
               className="button tertiary"
               onClick={() => {
                 getCurrentLocation();
@@ -251,13 +258,11 @@ export default function BoardDetailPage() {
           {threads.length === 0 ? (
             <div className="empty-threads">
               <p>まだ投稿がありません</p>
-              {canAccess && (
-                <p className="hint">最初の投稿をしてみませんか？</p>
-              )}
+              {canAccess && <p className="hint">最初の投稿をしてみませんか？</p>}
             </div>
           ) : (
             <div className="threads-list">
-              {threads.map(thread => (
+              {threads.map((thread) => (
                 <article key={thread.id} className="thread-card">
                   <div className="thread-header">
                     <div className="author-info">
@@ -269,7 +274,7 @@ export default function BoardDetailPage() {
                         threadId={thread.id}
                         expiresAt={thread.expiresAt?.toISOString()}
                         isArchived={thread.isArchived}
-                        restoreCount={(thread as any).restoreCount || 0}
+                        restoreCount={(thread as BoardThread & { restoreCount?: number }).restoreCount || 0}
                         onRestore={() => {
                           // スレッドが復元されたらリストを更新
                           fetchThreads();
@@ -294,7 +299,7 @@ export default function BoardDetailPage() {
                         詳細を見る
                       </Link>
                     ) : (
-                      <button className="button small disabled" disabled>
+                      <button type="button" className="button small disabled" disabled>
                         アクセス不可
                       </button>
                     )}
