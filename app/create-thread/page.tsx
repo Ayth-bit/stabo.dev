@@ -1,4 +1,3 @@
-// app/create-thread/page.tsx
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -13,79 +12,112 @@ const CreateThreadPage = () => {
 
   const initialLat = Number.parseFloat(searchParams.get('lat') || '0');
   const initialLon = Number.parseFloat(searchParams.get('lon') || '0');
+  
+  console.log('URL parameters:', { lat: searchParams.get('lat'), lon: searchParams.get('lon') });
+  console.log('Parsed coordinates:', { initialLat, initialLon });
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [userProfile, setUserProfile] = useState<{id: string, display_name: string} | null>(null);
-  const [nearestBoard, setNearestBoard] = useState<{id: string, name: string} | null>(null);
+  const [userProfile, setUserProfile] = useState<{ id: string; display_name: string } | null>(null);
+  const [nearestBoard, setNearestBoard] = useState<{ id: string; name: string } | null>(null);
 
   // ユーザー情報と最寄りボードを取得
   useEffect(() => {
     const fetchUserAndBoard = async () => {
-      if (!user) return;
-
       try {
-        // ユーザー情報を取得
-        const { data: profile, error: profileError } = await supabase
-          .from('users_extended')
-          .select('id, display_name')
-          .eq('id', user.id)
-          .single();
-
-        if (profileError) {
-          console.log('Profile not found, creating new profile for user:', user.id);
-          // ユーザープロファイルが存在しない場合、作成する
-          const displayName = user.user_metadata?.display_name || 
-                             user.email?.split('@')[0] || 
-                             'ユーザー';
-          
-          const { data: newProfile, error: createError } = await supabase
+        // ログインユーザーの場合のみユーザー情報を取得
+        if (user) {
+          // ユーザー情報を取得
+          const { data: profile, error: profileError } = await supabase
             .from('users_extended')
-            .insert({
-              id: user.id,
-              display_name: displayName,
-              is_creator: false,
-              qr_code: `stabo_${user.id.slice(0, 8)}_${Date.now().toString(36)}`,
-              points: 100,
-            })
             .select('id, display_name')
+            .eq('id', user.id)
             .single();
 
-          if (createError) {
-            console.error('Failed to create user profile:', createError);
-            setError('ユーザー情報の作成に失敗しました。');
-            return;
+          if (profileError) {
+            console.log('Profile not found, creating new profile for user:', user.id);
+            // ユーザープロファイルが存在しない場合、作成する
+            const displayName =
+              user.user_metadata?.display_name || user.email?.split('@')[0] || 'ユーザー';
+
+            const { data: newProfile, error: createError } = await supabase
+              .from('users_extended')
+              .insert({
+                id: user.id,
+                display_name: displayName,
+                is_creator: false,
+                qr_code: `stabo_${user.id.slice(0, 8)}_${Date.now().toString(36)}`,
+                points: 100,
+              })
+              .select('id, display_name')
+              .single();
+
+            if (createError) {
+              console.error('Failed to create user profile:', createError);
+              setError('ユーザー情報の作成に失敗しました。');
+              return;
+            }
+            setUserProfile(newProfile);
+          } else {
+            setUserProfile(profile);
           }
-          setUserProfile(newProfile);
         } else {
-          setUserProfile(profile);
+          // 未ログインユーザーの場合、unknownユーザーとして設定
+          setUserProfile({ id: 'unknown', display_name: 'unknown' });
         }
 
         // 最寄りのボードを取得
-        const { data: boards } = await supabase
+        const { data: boards, error: boardsError } = await supabase
           .from('boards')
           .select('id, name, latitude, longitude');
 
+        console.log('Boards data:', boards);
+        console.log('Boards error:', boardsError);
+        console.log('Initial coordinates:', { initialLat, initialLon });
+
+        if (boardsError) {
+          console.error('ボードデータ取得エラー:', boardsError);
+          setError(`ボードデータの取得に失敗しました: ${boardsError.message}`);
+          return;
+        }
+
         if (boards && boards.length > 0) {
-          // 距離計算して最寄りのボードを選択
-          let nearest = boards[0];
-          let minDistance = Number.MAX_VALUE;
+          // 位置情報が無効な場合はデフォルトボードを使用
+          if (initialLat === 0 && initialLon === 0) {
+            const defaultBoard = boards.find(b => b.name === '東京駅') || boards[0];
+            console.log('Invalid coordinates, using default board:', defaultBoard);
+            setNearestBoard(defaultBoard);
+          } else {
+            // 距離計算して最寄りのボードを選択
+            let nearest = boards[0];
+            let minDistance = Number.MAX_VALUE;
 
-          for (const board of boards) {
-            const distance = Math.sqrt(
-              (board.latitude - initialLat) ** 2 + 
-              (board.longitude - initialLon) ** 2
-            );
-            if (distance < minDistance) {
-              minDistance = distance;
-              nearest = board;
+            for (const board of boards) {
+              const distance = Math.sqrt(
+                (board.latitude - initialLat) ** 2 + (board.longitude - initialLon) ** 2
+              );
+              console.log(`Board ${board.name}: distance = ${distance}`);
+              if (distance < minDistance) {
+                minDistance = distance;
+                nearest = board;
+              }
             }
-          }
 
-          setNearestBoard(nearest);
+            console.log('Selected nearest board:', nearest);
+            setNearestBoard(nearest);
+          }
+        } else {
+          console.log('No boards found');
+          // フォールバック: デフォルトボードとして東京駅を設定
+          const defaultBoard = {
+            id: 'ffcb31b8-9563-444f-97c5-41a58e8dbe74',
+            name: '東京駅'
+          };
+          setNearestBoard(defaultBoard);
+          console.log('Using default board:', defaultBoard);
         }
       } catch (err) {
         console.error('データ取得エラー:', err);
@@ -100,12 +132,6 @@ const CreateThreadPage = () => {
     setSubmitting(true);
     setError(null);
     setSuccess(null);
-
-    if (!user) {
-      setError('ログインが必要です。');
-      setSubmitting(false);
-      return;
-    }
 
     if (!userProfile) {
       setError('ユーザー情報を取得できませんでした。');
@@ -142,29 +168,32 @@ const CreateThreadPage = () => {
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 72);
 
-      const { data, error: supabaseError } = await supabase
-        .from('threads')
-        .insert([
-          {
-            title: title.trim(),
-            content: content.trim(),
-            author_id: user.id,
-            author_name: userProfile.display_name,
-            board_id: nearestBoard.id,
-            latitude: initialLat,
-            longitude: initialLon,
-            expires_at: expiresAt.toISOString(),
-            is_archived: false,
-            created_at: new Date().toISOString(),
-          },
-        ])
-        .select()
-        .single();
+      // APIルート経由でスレッドを作成
+      const threadData = {
+        title: title.trim(),
+        content: content.trim(),
+        author_id: user?.id || null,
+        author_name: userProfile.display_name,
+        board_id: nearestBoard.id,
+        latitude: initialLat,
+        longitude: initialLon
+      };
 
-      if (supabaseError) {
-        console.error('スレッド作成エラー:', supabaseError);
-        setError(`スレッドの作成に失敗しました: ${supabaseError.message}`);
+      const response = await fetch('/api/threads/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(threadData),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error('スレッド作成エラー:', result);
+        setError(`スレッドの作成に失敗しました: ${result.error}`);
       } else {
+        const data = result.thread;
         setSuccess('スレッドが正常に作成されました！');
         setTitle('');
         setContent('');
@@ -180,51 +209,6 @@ const CreateThreadPage = () => {
     }
   };
 
-  // ログインしていない場合の表示
-  if (!user) {
-    return (
-      <div style={{
-        padding: '20px',
-        fontFamily: 'Arial, sans-serif',
-        maxWidth: '500px',
-        margin: 'auto',
-        textAlign: 'center'
-      }}>
-        <h2>ログインが必要です</h2>
-        <p>スレッドを作成するにはログインしてください。</p>
-        <div style={{ gap: '10px', display: 'flex', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={() => router.push('/auth/login')}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer'
-            }}
-          >
-            ログイン
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push('/auth/register')}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#28a745',
-              color: 'white',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer'
-            }}
-          >
-            新規登録
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div

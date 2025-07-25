@@ -23,11 +23,21 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 })
 
 // Server-side Supabase client with service role (for admin operations)
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+// Only create this on the server-side where environment variables are available
+let supabaseAdmin: ReturnType<typeof createClient> | null = null
 
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
+if (typeof window === 'undefined') {
+  // Server-side only
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  
+  if (supabaseServiceKey) {
+    supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
   }
-})
+}
+
+export { supabaseAdmin }

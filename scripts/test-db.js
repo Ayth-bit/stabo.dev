@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const { createClient } = require('@supabase/supabase-js');
 
 // Load environment variables directly from .env file
@@ -9,16 +9,17 @@ const envPath = path.join(__dirname, '../.env');
 const envContent = fs.readFileSync(envPath, 'utf8');
 const envVars = {};
 
-envContent.split('\n').forEach((line) => {
+const envLines = envContent.split('\n');
+for (const line of envLines) {
   const [key, value] = line.split('=');
   if (key && value) {
     envVars[key.trim()] = value.trim();
   }
-});
+}
 
-const supabaseUrl = envVars['NEXT_PUBLIC_SUPABASE_URL'];
-const supabaseAnonKey = envVars['NEXT_PUBLIC_SUPABASE_ANON_KEY'];
-const supabaseServiceKey = envVars['SUPABASE_SERVICE_ROLE_KEY'];
+const supabaseUrl = envVars.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = envVars.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseServiceKey = envVars.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('❌ Missing Supabase environment variables');
@@ -79,9 +80,9 @@ async function testDatabase() {
       console.log('❌ Boards query failed:', boardsError.message);
     } else {
       console.log(`✅ Found ${boards.length} boards:`);
-      boards.forEach((board) => {
+      for (const board of boards) {
         console.log(`  - ${board.name} (${board.type})`);
-      });
+      }
     }
 
     // Test 4: Check admin user
@@ -95,9 +96,9 @@ async function testDatabase() {
       console.log('❌ Admin user check failed:', adminError.message);
     } else {
       console.log(`✅ Found ${adminUsers.length} admin users:`);
-      adminUsers.forEach((user) => {
+      for (const user of adminUsers) {
         console.log(`  - ${user.display_name} (${user.id})`);
-      });
+      }
     }
 
     // Test 5: Check auth users
@@ -111,9 +112,9 @@ async function testDatabase() {
       console.log('❌ Auth users check failed:', authError.message);
     } else {
       console.log(`✅ Found ${authUsers.length} auth users:`);
-      authUsers.forEach((user) => {
+      for (const user of authUsers) {
         console.log(`  - ${user.email} (${user.id})`);
-      });
+      }
     }
   } catch (error) {
     console.error('❌ Unexpected error:', error.message);

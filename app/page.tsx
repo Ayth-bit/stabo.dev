@@ -408,16 +408,16 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
       </div>
 
       {/* スレッド一覧（地図の下に簡潔に表示） */}
-      <div className="bg-gray-50 p-6" style={{ borderRadius: 'var(--border-radius-md)' }}>
-        <h3 className="m-0 mb-6 text-lg text-primary font-semibold">
+      <div className="bg-gray-50 p-8 mt-6" style={{ borderRadius: 'var(--border-radius-md)' }}>
+        <h3 className="m-0 mb-8 text-xl text-primary font-semibold">
           スレッド一覧 ({threads.length}件)
         </h3>
-        <div className="grid gap-4">
+        <div className="grid gap-6">
           {threads.slice(0, 5).map((thread, index) => (
             <div
               key={thread.id}
-              className="flex justify-between items-center py-5 px-4 bg-white border border-gray-300 cursor-pointer hover:bg-gray-50 transition-colors duration-200"
-              style={{ borderRadius: 'var(--border-radius)' }}
+              className="flex justify-between items-start py-6 px-6 bg-white shadow-sm border-0 cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.01]"
+              style={{ borderRadius: 'var(--border-radius-lg)' }}
               onClick={() => {
                 const mapUrl = `https://www.google.com/maps?q=${thread.latitude},${thread.longitude}&z=15`;
                 try {
@@ -444,26 +444,26 @@ const DistantThreadsList = ({ threads }: { threads: DistantThreadInfo[] }) => {
                 }
               }}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+              <div className="flex items-start gap-4 flex-1">
+                <div className="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-md">
                   {index + 1}
                 </div>
                 <div className="flex-1">
-                  <div className="font-semibold text-base text-primary">{thread.title}</div>
-                  <div className="text-sm text-tertiary mt-1">
-                    投稿数: {thread.post_count} | 座標: {thread.latitude.toFixed(4)},{' '}
-                    {thread.longitude.toFixed(4)}
+                  <div className="font-semibold text-lg text-primary mb-2">{thread.title}</div>
+                  <div className="text-sm text-tertiary mb-2">投稿数: {thread.post_count}件</div>
+                  <div className="text-xs text-gray-400">
+                    座標: {thread.latitude.toFixed(4)}, {thread.longitude.toFixed(4)}
                   </div>
                 </div>
               </div>
-              <div className="flex flex-col items-end gap-2">
-                <div className="text-sm text-tertiary font-medium">
+              <div className="flex flex-col items-end gap-3 ml-4">
+                <div className="text-lg text-tertiary font-bold bg-gray-100 px-3 py-1 rounded-full">
                   {thread.distance.toFixed(1)}km
                 </div>
                 <button
                   type="button"
-                  className="text-sm px-3 py-1 bg-blue-600 text-white border-none cursor-pointer hover:bg-blue-700 transition-colors"
-                  style={{ borderRadius: 'var(--border-radius-sm)' }}
+                  className="text-sm px-4 py-2 bg-blue-500 text-white border-none cursor-pointer hover:bg-blue-600 transition-all shadow-sm hover:shadow-md"
+                  style={{ borderRadius: 'var(--border-radius)' }}
                   onClick={(e) => {
                     e.stopPropagation();
                     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${thread.latitude},${thread.longitude}`;
@@ -641,17 +641,19 @@ const HomePage = () => {
     >
       <header
         style={{
-          marginBottom: '20px',
-          paddingBottom: '10px',
-          borderBottom: '1px solid #eee',
+          marginBottom: '48px',
+          paddingBottom: '24px',
+          borderBottom: '2px solid #e6a800',
         }}
       >
         <h1
           style={{
-            color: '#333',
+            color: 'rgb(230, 168, 0)',
             margin: 0,
-            fontSize: '1.5em',
+            fontSize: '3rem',
             textAlign: 'center',
+            fontWeight: 'bold',
+            letterSpacing: '0.05em',
           }}
         >
           stabo.dev
@@ -659,15 +661,21 @@ const HomePage = () => {
       </header>
 
       {isLoading ? (
-        <p style={{ textAlign: 'center', fontSize: '1.2em', color: '#555' }}>{currentStatus}</p>
+        <div className="text-center py-12">
+          <div className="text-xl text-gray-600 mb-4">{currentStatus}</div>
+          <div className="w-8 h-8 mx-auto border-4 border-yellow-500 border-t-transparent rounded-full animate-spin" />
+        </div>
       ) : (
         <div>
           {location.error && (
-            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <p style={{ color: 'red', whiteSpace: 'pre-line' }}>{location.error}</p>
-              <div style={{ marginTop: '15px' }}>
+            <div className="text-center mb-8 p-6 bg-red-50 rounded-lg border border-red-200">
+              <p className="text-red-700 whitespace-pre-line text-base leading-relaxed">
+                {location.error}
+              </p>
+              <div className="mt-6">
                 <button
                   type="button"
+                  className="px-6 py-3 bg-yellow-500 text-white font-semibold rounded-lg hover:bg-yellow-600 transition-colors shadow-md"
                   onClick={() => {
                     console.log('Using manual fallback coordinates');
                     setLocation({
@@ -677,15 +685,6 @@ const HomePage = () => {
                     });
                     handleLocationProcessed(35.6812, 139.7671);
                   }}
-                  style={{
-                    padding: '10px 20px',
-                    backgroundColor: '#28a745',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 'var(--border-radius)',
-                    cursor: 'pointer',
-                    marginRight: '10px',
-                  }}
                 >
                   東京駅でテストする
                 </button>
@@ -694,14 +693,7 @@ const HomePage = () => {
                   onClick={() => {
                     window.location.reload();
                   }}
-                  style={{
-                    padding: '10px 20px',
-                    backgroundColor: '#007bff',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 'var(--border-radius)',
-                    cursor: 'pointer',
-                  }}
+                  className="btn-secondary"
                 >
                   再試行
                 </button>

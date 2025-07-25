@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import type { BoardThread } from '@/app/types/domain'
 
 export class SupabaseBoardThreadRepository {
@@ -18,7 +18,7 @@ export class SupabaseBoardThreadRepository {
   }
 
   async findAll(): Promise<BoardThread[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('threads')
       .select('*')
       .order('created_at', { ascending: false })
@@ -32,7 +32,7 @@ export class SupabaseBoardThreadRepository {
   }
 
   async findByBoardId(boardId: string): Promise<BoardThread[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('threads')
       .select('*')
       .eq('board_id', boardId)
@@ -47,7 +47,7 @@ export class SupabaseBoardThreadRepository {
   }
 
   async findById(id: string): Promise<BoardThread | null> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('threads')
       .select('*')
       .eq('id', id)

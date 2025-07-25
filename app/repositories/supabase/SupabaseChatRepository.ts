@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import type { Chat } from '@/app/types/domain'
 
 export class SupabaseChatRepository {
@@ -14,7 +14,7 @@ export class SupabaseChatRepository {
   }
 
   async findAll(): Promise<Chat[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('direct_messages')
       .select('*')
       .order('created_at', { ascending: false })
@@ -28,7 +28,7 @@ export class SupabaseChatRepository {
   }
 
   async findById(id: string): Promise<Chat | null> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('direct_messages')
       .select('*')
       .eq('id', id)
@@ -43,7 +43,7 @@ export class SupabaseChatRepository {
   }
 
   async findByUserId(userId: string): Promise<Chat[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('direct_messages')
       .select('*')
       .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)

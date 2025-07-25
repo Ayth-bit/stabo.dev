@@ -15,16 +15,17 @@ interface AuthLayoutProps {
 
 export function AuthLayout({ children, title, subtitle, backLink }: AuthLayoutProps) {
   return (
-    <div className="min-h-screen flex justify-center items-center bg-gray-50 p-4">
-      <div className="card p-8 shadow-lg w-full max-w-md">
+    <div className="min-h-screen flex justify-center items-center bg-gray-50 p-6">
+      <div className="bg-white rounded-2xl p-8 w-full max-w-md" style={{boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 4px 8px 3px rgba(0, 0, 0, 0.15)'}}>
         <div className="text-center mb-8">
           {backLink && (
-            <Link href={backLink.href} className="inline-block text-secondary text-sm mb-4 transition-colors hover:text-accent">
-              ← {backLink.text}
+            <Link href={backLink.href} className="inline-flex items-center text-gray-600 text-sm mb-6 transition-colors hover:text-primary">
+              <span className="mr-2">←</span>
+              {backLink.text}
             </Link>
           )}
-          <h1 className="m-0 mb-2 text-2xl text-primary font-bold">{title}</h1>
-          <p className="m-0 text-secondary text-sm">{subtitle}</p>
+          <h1 className="text-3xl font-bold mb-3" style={{color: 'rgb(230, 168, 0)'}}>{title}</h1>
+          <p className="text-gray-600 text-base">{subtitle}</p>
         </div>
         {children}
       </div>
@@ -54,7 +55,7 @@ interface FormGroupProps {
 export function FormGroup({ label, htmlFor, children }: FormGroupProps) {
   return (
     <div className="mb-6">
-      <label htmlFor={htmlFor} className="block mb-2 font-semibold text-primary">{label}</label>
+      <label htmlFor={htmlFor} className="block mb-3 font-medium text-gray-700 text-sm">{label}</label>
       {children}
     </div>
   );

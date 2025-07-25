@@ -1,5 +1,8 @@
 # stabo.dev Development Makefile
-# ローカル開発環境用のコマンドショートカット
+# 本番環境用のコマンドショートカット
+
+# 環境変数読み込み
+include .env
 
 # 色付きの出力用
 GREEN := \033[0;32m
@@ -8,7 +11,9 @@ RED := \033[0;31m
 NC := \033[0m # No Color
 
 # デフォルトのデータベース接続情報 (Production Supabase)
-DB_URL := postgresql://postgres:M2Hbll5kEuNckdTvWDgfJxhRhCGZ4C3ZOQu1E2Gz2LU@db.tjtgpwpkgezolvydfmwa.supabase.co:5432/postgres
+# Service role keyをパスワードとして使用
+DB_PASSWORD := eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqdGdwd3BrZ2V6b2x2eWRmbXdhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0OTM3MjQzOSwiZXhwIjoyMDY0OTQ4NDM5fQ.Lot-0nZgVPubXKfZu2OV9lp38JYSqHjveWZox4G0Jwg
+DB_URL := postgresql://postgres.tjtgpwpkgezolvydfmwa:$(DB_PASSWORD)@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres
 
 .PHONY: help db-* supabase-* dev-*
 

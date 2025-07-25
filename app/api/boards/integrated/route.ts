@@ -2,7 +2,7 @@
 // 既存のスレッドシステムと新しい掲示板システムを統合
 
 import { type NextRequest, NextResponse } from 'next/server';
-import { ALL_BOARDS } from '../data';
+import { createClient } from '@supabase/supabase-js';
 
 // 距離計算関数
 function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -28,14 +28,50 @@ export async function GET(request: NextRequest) {
     const lng = Number.parseFloat(searchParams.get('lng') || '0');
     const filter = searchParams.get('filter') || 'all';
 
-    // 距離計算して近い順にソート（仕様：閲覧1.5km、投稿300m）
-    const boardsWithDistance = ALL_BOARDS.map((board) => {
-      const distance = calculateDistance(lat, lng, board.lat, board.lng);
-      const viewRadius = board.viewRadius || 1500; // デフォルト1.5km
-      const isViewable = distance <= viewRadius; // 閲覧可能
-      const isAccessible = distance <= board.accessRadius; // 投稿可能（300m）
+    // Supabase client setup
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    // Fetch boards from database
+    const { data: boardsData, error } = await supabase
+      .from('boards')
+      .select('*')
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('Failed to fetch boards:', error);
+      return NextResponse.json({ error: 'Failed to fetch boards' }, { status: 500 });
+    }
+
+    if (!boardsData || boardsData.length === 0) {
+      return NextResponse.json({
+        boards: [],
+        total: 0,
+        byType: { station: 0, ward: 0, park: 0, accessible: 0 },
+        allStats: { station: 0, ward: 0, park: 0, accessible: 0, all: 0 },
+        userLocation: lat && lng ? { lat, lng } : null,
+      });
+    }
+
+    // Convert database format to API format and calculate distances
+    const hasValidLocation = lat !== 0 && lng !== 0;
+    const boardsWithDistance = boardsData.map((board) => {
+      const distance = hasValidLocation ? calculateDistance(lat, lng, Number(board.latitude), Number(board.longitude)) : 0;
+      const viewRadius = board.view_radius || 1500; // デフォルト1.5km
+      const isViewable = hasValidLocation ? distance <= viewRadius : true; // 位置情報がない場合は全て閲覧可能
+      const isAccessible = hasValidLocation ? distance <= board.access_radius : false; // 位置情報がない場合は投稿不可
       return {
-        ...board,
+        id: board.id,
+        name: board.name,
+        type: board.type,
+        lat: Number(board.latitude),
+        lng: Number(board.longitude),
+        accessRadius: board.access_radius,
+        viewRadius: board.view_radius,
+        description: board.description,
+        createdAt: new Date(board.created_at),
         distance,
         isViewable,
         isAccessible,

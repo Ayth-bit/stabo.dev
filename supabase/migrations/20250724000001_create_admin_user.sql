@@ -55,12 +55,14 @@ BEGIN
     display_name,
     is_creator,
     is_admin,
+    qr_code,
     created_at
   ) VALUES (
     admin_id,
     'System Administrator',
     TRUE,
     TRUE,
+    'admin-' || admin_id::text,
     NOW()
   ) ON CONFLICT (id) DO UPDATE SET
     is_creator = TRUE,

@@ -1,6 +1,9 @@
 -- Fix RLS policy for users_extended table to allow INSERT operations
 -- This migration adds the missing INSERT policy for user registration
 
+-- Drop existing policy if it exists and recreate it
+DROP POLICY IF EXISTS "Users can insert own data" ON users_extended;
+
 -- Add INSERT policy for users_extended table
 CREATE POLICY "Users can insert own data" ON users_extended FOR INSERT 
 WITH CHECK (auth.uid() = id);

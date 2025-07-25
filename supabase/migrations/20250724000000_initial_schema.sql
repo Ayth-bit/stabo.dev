@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users_extended (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   display_name VARCHAR(20) NOT NULL,
   is_creator BOOLEAN DEFAULT FALSE,
+  is_admin BOOLEAN DEFAULT FALSE,
   qr_code VARCHAR(100) UNIQUE NOT NULL,
   points INTEGER DEFAULT 100,
   avatar_url TEXT,
@@ -183,6 +184,7 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 -- Users can read their own data
 CREATE POLICY "Users can read own data" ON users_extended FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update own data" ON users_extended FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Users can insert own data" ON users_extended FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- Users can read public user information
 CREATE POLICY "Public user profiles" ON users_extended FOR SELECT USING (true);

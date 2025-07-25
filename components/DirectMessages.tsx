@@ -3,7 +3,10 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-const supabase = createClientComponentClient();
+const supabase = createClientComponentClient({
+  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+});
 
 interface Connection {
   id: string;
@@ -39,9 +42,10 @@ interface ChatMessage {
 interface DirectMessagesProps {
   userId: string;
   connections: Connection[];
+  autoStartChatWith?: {id: string, name: string} | null;
 }
 
-export function DirectMessages({ userId, connections }: DirectMessagesProps) {
+export function DirectMessages({ userId, connections, autoStartChatWith }: DirectMessagesProps) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -180,59 +184,23 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
     [userId]
   );
 
-  useEffect(() => {
-    fetchChats();
-  }, [fetchChats]);
-
-  useEffect(() => {
-    if (selectedChat) {
-      fetchMessages(selectedChat.id);
-      markMessagesAsRead(selectedChat.id);
-    }
-  }, [selectedChat, fetchMessages, markMessagesAsRead]);
-
-  useEffect(() => {
-    // メッセージのリアルタイム購読
-    if (selectedChat) {
-      const subscription = supabase
-        .channel(`chat_messages:${selectedChat.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'chat_messages',
-            filter: `chat_id=eq.${selectedChat.id}`,
-          },
-          (payload) => {
-            const newMessage = payload.new as ChatMessage;
-            setMessages((prev) => [
-              ...prev,
-              {
-                ...newMessage,
-                sender: {
-                  display_name:
-                    newMessage.sender_id === userId
-                      ? 'あなた'
-                      : selectedChat.other_user.display_name,
-                },
-              },
-            ]);
-            scrollToBottom();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        subscription.unsubscribe();
-      };
-    }
-  }, [selectedChat, userId, scrollToBottom]);
-
-  const createChat = async (friendId: string) => {
+  const createChat = useCallback(async (friendId: string) => {
+    console.log('Creating chat with friend:', friendId);
+    console.log('Current userId:', userId);
+    
     try {
+      // 現在のユーザー認証状態を確認
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      console.log('Current auth user:', user, 'Auth error:', authError);
+      
+      if (!user || user.id !== userId) {
+        console.error('Authentication mismatch:', { authUserId: user?.id, componentUserId: userId });
+        throw new Error('認証エラー: ユーザー情報が一致しません');
+      }
+      
       // 既存のチャットをチェック
-      const { data: existingChat } = await supabase
+      console.log('Checking for existing chat...');
+      const { data: existingChat, error: checkError } = await supabase
         .from('chats')
         .select('id')
         .or(
@@ -240,10 +208,14 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
         )
         .single();
 
+      console.log('Existing chat check result:', { existingChat, checkError });
+
       if (existingChat) {
+        console.log('Found existing chat:', existingChat.id);
         // 既存のチャットを選択
         const friend = connections.find((c) => c.connected_user_id === friendId);
         if (friend) {
+          console.log('Setting selected chat...');
           setSelectedChat({
             id: existingChat.id,
             user1_id: userId,
@@ -260,8 +232,10 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
       }
 
       // 新しいチャットを作成
+      console.log('Creating new chat...');
       const user1_id = userId < friendId ? userId : friendId;
       const user2_id = userId < friendId ? friendId : userId;
+      console.log('Chat participants:', { user1_id, user2_id, currentAuthUserId: user.id });
 
       const { data: newChat, error: createError } = await supabase
         .from('chats')
@@ -272,10 +246,14 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
         .select()
         .single();
 
+      console.log('New chat creation result:', { newChat, createError });
+
       if (createError) throw createError;
 
       const friend = connections.find((c) => c.connected_user_id === friendId);
+      console.log('Found friend for new chat:', friend);
       if (friend && newChat) {
+        console.log('Setting new chat as selected...');
         setSelectedChat({
           ...newChat,
           other_user: {
@@ -288,9 +266,107 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
       fetchChats();
     } catch (err) {
       console.error('チャット作成エラー:', err);
-      setError('チャットの作成に失敗しました');
+      console.error('Full error object:', JSON.stringify(err, null, 2));
+      setError(`チャットの作成に失敗しました: ${(err as Error).message}`);
     }
-  };
+  }, [userId, connections, fetchChats]);
+
+  useEffect(() => {
+    fetchChats();
+  }, [fetchChats]);
+
+  // 自動チャット開始機能
+  useEffect(() => {
+    if (autoStartChatWith && connections.length > 0) {
+      createChat(autoStartChatWith.id);
+    }
+  }, [autoStartChatWith, connections, createChat]);
+
+  useEffect(() => {
+    if (selectedChat) {
+      fetchMessages(selectedChat.id);
+      markMessagesAsRead(selectedChat.id);
+    }
+  }, [selectedChat, fetchMessages, markMessagesAsRead]);
+
+  useEffect(() => {
+    // メッセージのリアルタイム購読
+    if (selectedChat) {
+      console.log('Setting up realtime subscription for chat:', selectedChat.id);
+      
+      let subscription: ReturnType<typeof supabase.channel> | null = null;
+      let intervalId: NodeJS.Timeout | null = null;
+      
+      try {
+        subscription = supabase
+          .channel(`chat_messages:${selectedChat.id}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'chat_messages',
+              filter: `chat_id=eq.${selectedChat.id}`,
+            },
+            (payload) => {
+              console.log('Realtime message received:', payload);
+              const newMessage = payload.new as ChatMessage;
+              setMessages((prev) => [
+                ...prev,
+                {
+                  ...newMessage,
+                  sender: {
+                    display_name:
+                      newMessage.sender_id === userId
+                        ? 'あなた'
+                        : selectedChat.other_user.display_name,
+                  },
+                },
+              ]);
+              scrollToBottom();
+            }
+          )
+          .subscribe((status) => {
+            console.log('Realtime subscription status:', status);
+            
+            // If subscription fails, use polling
+            if (status === 'CHANNEL_ERROR') {
+              console.warn('Realtime subscription failed, using polling fallback');
+              if (!intervalId) {
+                intervalId = setInterval(() => {
+                  fetchMessages(selectedChat.id);
+                }, 3000);
+              }
+            }
+          });
+
+        // Always set up polling as a backup
+        intervalId = setInterval(() => {
+          fetchMessages(selectedChat.id);
+        }, 5000); // 5秒ごと
+
+      } catch (error) {
+        console.warn('Realtime setup failed, using polling only:', error);
+        intervalId = setInterval(() => {
+          fetchMessages(selectedChat.id);
+        }, 3000);
+      }
+
+      return () => {
+        console.log('Cleaning up realtime subscription and polling');
+        if (subscription) {
+          try {
+            supabase.removeChannel(subscription);
+          } catch (error) {
+            console.warn('Error removing subscription:', error);
+          }
+        }
+        if (intervalId) {
+          clearInterval(intervalId);
+        }
+      };
+    }
+  }, [selectedChat, userId, scrollToBottom, fetchMessages]);
 
   const sendMessage = async () => {
     if (!selectedChat || !newMessage.trim()) return;
@@ -306,6 +382,8 @@ export function DirectMessages({ userId, connections }: DirectMessagesProps) {
       if (error) throw error;
 
       setNewMessage('');
+      // メッセージ送信後、メッセージ一覧とチャット一覧を更新
+      await fetchMessages(selectedChat.id);
       fetchChats(); // チャット一覧の最終メッセージを更新
     } catch (err) {
       console.error('メッセージ送信エラー:', err);

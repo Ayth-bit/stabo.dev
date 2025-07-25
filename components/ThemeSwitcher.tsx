@@ -16,22 +16,24 @@ export const ThemeSwitcher = () => {
   const { theme, setTheme } = useTheme();
 
   return (
-    <div className="fixed top-20 right-3 z-[1000] card p-2 shadow-lg">
-      <label htmlFor="theme-select" className="text-sm text-secondary mr-2">
-        テーマ:
-      </label>
-      <select
-        id="theme-select"
-        value={theme}
-        onChange={(e) => setTheme(e.target.value as Theme)}
-        className="text-xs border border-gray-300 rounded px-2 py-1 bg-white text-primary focus:outline-none focus:border-accent"
-      >
-        {themes.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.name}
-          </option>
-        ))}
-      </select>
+    <div className="fixed top-20 right-4 z-[1000] bg-white rounded-xl p-3 shadow-lg" style={{boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 4px 8px 3px rgba(0, 0, 0, 0.15)'}}>
+      <div className="flex items-center gap-3">
+        <label htmlFor="theme-select" className="text-sm text-gray-600 font-medium">
+          テーマ
+        </label>
+        <select
+          id="theme-select"
+          value={theme}
+          onChange={(e) => setTheme(e.target.value as Theme)}
+          className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-200 focus:ring-opacity-50 min-w-[80px]"
+        >
+          {themes.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 };

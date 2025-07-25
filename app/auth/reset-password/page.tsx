@@ -14,7 +14,10 @@ import {
   SuccessMessage,
 } from '../../../components/AuthLayout';
 
-const supabase = createClientComponentClient();
+const supabase = createClientComponentClient({
+  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+});
 
 export default function ResetPasswordPage() {
   const [email, setEmail] = useState('');

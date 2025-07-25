@@ -40,22 +40,37 @@ interface UserPost {
   };
 }
 
+interface UserThread {
+  id: string;
+  title: string;
+  content: string;
+  created_at: string;
+  expires_at: string | null;
+  restored_at: string | null;
+  restore_count: number;
+  is_expired: boolean;
+  can_restore: boolean;
+  boards: {
+    name: string;
+  } | null;
+}
+
 export default function MyPage() {
   const { user } = useAuth();
   const [userExtended, setUserExtended] = useState<UserExtended | null>(null);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [userPosts, setUserPosts] = useState<UserPost[]>([]);
-  const [activeTab, setActiveTab] = useState<'base' | 'friends' | 'posts' | 'dm'>('base');
+  const [activeThreads, setActiveThreads] = useState<UserThread[]>([]);
+  const [expiredThreads, setExpiredThreads] = useState<UserThread[]>([]);
+  const [activeTab, setActiveTab] = useState<'base' | 'friends' | 'posts' | 'threads' | 'dm'>('base');
+  const [selectedChatFriend, setSelectedChatFriend] = useState<{id: string, name: string} | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUserData = useCallback(async () => {
     if (!user) return;
 
-    console.log('Fetching user data for user:', user.id);
-    console.log('User object:', user);
-
     try {
-      console.log('Attempting to query users_extended table...');
+      console.log('Fetching user data for:', user.id);
       const { data, error } = await supabase
         .from('users_extended')
         .select('*')
@@ -65,87 +80,50 @@ export default function MyPage() {
       console.log('Query response - data:', data, 'error:', error);
 
       if (error) {
-        console.error('Error fetching user data:');
-        console.error('Full error object:', JSON.stringify(error, null, 2));
-        console.error('Error details:', {
-          message: error.message || 'No message',
-          details: error.details || 'No details',
-          hint: error.hint || 'No hint',
-          code: error.code || 'No code',
-          table: 'users_extended',
-          user_id: user.id,
-        });
-
-        // エラーコードに応じた処理
         if (error.code === 'PGRST116') {
-          console.log('User not found in users_extended, creating new user record');
-
-          // ユーザーが存在しない場合、新しいレコードを作成
-          try {
-            const { error: insertError } = await supabase.from('users_extended').insert({
+          // ユーザーレコードが存在しない場合は作成
+          console.log('Creating new user record...');
+          const displayName = user.user_metadata?.display_name || user.email || 'ユーザー';
+          const qrCode = `qr_${user.id.replace(/-/g, '_')}_${Date.now()}`;
+          
+          const { data: newUser, error: createError } = await supabase
+            .from('users_extended')
+            .insert({
               id: user.id,
-              display_name: user.user_metadata?.display_name || user.email || 'ユーザー',
-              qr_code: `qr_${user.id.slice(0, 8)}_${Date.now()}`,
-              points: 100,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            });
-
-            if (insertError) {
-              console.error('Failed to create user record:', insertError);
-              setUserExtended({
-                id: user.id,
-                display_name: user.user_metadata?.display_name || user.email || 'ユーザー',
-                home_base_lat: undefined,
-                home_base_lng: undefined,
-                points: 0,
-                qr_code: `fallback_${user.id.slice(0, 8)}`,
-              });
-            } else {
-              // 作成成功したら再度取得
-              const { data: newData } = await supabase
-                .from('users_extended')
-                .select('*')
-                .eq('id', user.id)
-                .single();
-
-              if (newData) {
-                setUserExtended(newData);
-              }
-            }
-          } catch (createError) {
-            console.error('Exception creating user record:', createError);
-            setUserExtended({
-              id: user.id,
-              display_name: user.user_metadata?.display_name || user.email || 'ユーザー',
-              home_base_lat: undefined,
-              home_base_lng: undefined,
+              display_name: displayName,
+              qr_code: qrCode,
               points: 0,
-              qr_code: `fallback_${user.id.slice(0, 8)}`,
+              is_creator: false,
+              base_radius: 1000,
+            })
+            .select()
+            .single();
+
+          if (createError) {
+            console.error('Create user error:', createError);
+            console.error('Full error object:', JSON.stringify(createError, null, 2));
+            console.error('Error details:', {
+              message: createError.message || 'No message',
+              details: createError.details || 'No details',
+              hint: createError.hint || 'No hint',
+              code: createError.code || 'No code',
             });
+            return;
           }
-        } else if (error.code === '42P01' || error.message?.includes('does not exist')) {
-          console.warn(
-            'users_extended table does not exist - creating basic user profile'
-          );
-          // テーブルが存在しない場合の対応
-          console.log('Attempting to handle missing table by creating basic user profile');
-          setUserExtended({
-            id: user.id,
-            display_name: user.user_metadata?.display_name || user.email || 'ユーザー',
-            home_base_lat: undefined,
-            home_base_lng: undefined,
-            points: 0,
-            qr_code: `fallback_${user.id.slice(0, 8)}`,
-          });
+
+          console.log('New user created:', newUser);
+          setUserExtended(newUser);
         } else {
-          console.error('Unknown database error occurred');
+          console.error('Fetch user error:', error);
+          console.error('Full error object:', JSON.stringify(error, null, 2));
         }
-      } else {
-        setUserExtended(data);
+        return;
       }
+
+      console.log('User data found:', data);
+      setUserExtended(data);
     } catch (err) {
-      console.error('Exception fetching user data:');
+      console.error('Exception fetching user data:', err);
       console.error('Exception details:', JSON.stringify(err, null, 2));
       console.error('Exception object:', err);
     } finally {
@@ -185,20 +163,33 @@ export default function MyPage() {
       const formattedConnections = [];
       if (data) {
         for (const conn of data) {
-          const { data: userData } = await supabase
+          const { data: userData, error: userError } = await supabase
             .from('users_extended')
             .select('display_name')
             .eq('id', conn.connected_user_id)
             .single();
 
-          formattedConnections.push({
-            id: conn.id,
-            connected_user_id: conn.connected_user_id,
-            created_at: conn.created_at,
-            connected_user: {
-              display_name: userData?.display_name || '未設定',
-            },
-          });
+          if (userError) {
+            console.warn('ユーザー情報取得エラー:', userError);
+            // users_extendedテーブルが存在しない場合のフォールバック
+            formattedConnections.push({
+              id: conn.id,
+              connected_user_id: conn.connected_user_id,
+              created_at: conn.created_at,
+              connected_user: {
+                display_name: 'ユーザー',
+              },
+            });
+          } else {
+            formattedConnections.push({
+              id: conn.id,
+              connected_user_id: conn.connected_user_id,
+              created_at: conn.created_at,
+              connected_user: {
+                display_name: userData?.display_name || '未設定',
+              },
+            });
+          }
         }
       }
       setConnections(formattedConnections);
@@ -246,139 +237,230 @@ export default function MyPage() {
         .from('threads')
         .select('id, content, created_at, board_id, is_archived, restore_count')
         .eq('author_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
+        .order('created_at', { ascending: false });
 
       if (userError) {
-        console.error('Error fetching user-specific posts:');
-        console.error('User error object:', JSON.stringify(userError, null, 2));
-
-        if (userError.code === '42703') {
-          console.warn('user_id column does not exist in threads table');
-          // user_idカラムがない場合は空の結果を返す
-          setUserPosts([]);
-          return;
-        }
-
+        console.error('Error fetching user posts:');
+        console.error('Full error object:', JSON.stringify(userError, null, 2));
         setUserPosts([]);
         return;
       }
 
-      // データが取得できた場合、boardsとのJOINを試す
-      if (userPosts && userPosts.length > 0) {
-        const { data: postsWithBoards, error: joinError } = await supabase
-          .from('threads')
-          .select(`
-            id,
-            content,
-            created_at,
-            board_id,
-            is_archived,
-            restore_count,
-            boards (
-              name
-            )
-          `)
-          .eq('author_id', user.id)
-          .order('created_at', { ascending: false });
+      console.log('User posts:', userPosts);
 
-        if (joinError) {
-          console.warn('Error joining with boards table:');
-          console.warn('Join error details:', JSON.stringify(joinError, null, 2));
-          // boardsテーブルとのJOINに失敗した場合、boards情報なしで表示
-          const postsWithoutBoards = userPosts.map((post) => ({
+      // ボード名を取得
+      const postsWithBoards = [];
+      if (userPosts) {
+        for (const post of userPosts) {
+          const { data: boardData } = await supabase
+            .from('boards')
+            .select('name')
+            .eq('id', post.board_id)
+            .single();
+
+          postsWithBoards.push({
             ...post,
-            boards: { name: '不明な掲示板' },
-            is_archived: post.is_archived || false,
-          }));
-          setUserPosts(postsWithoutBoards);
-        } else {
-          setUserPosts((postsWithBoards || []) as unknown as UserPost[]);
+            boards: {
+              name: boardData?.name || '不明',
+            },
+          });
         }
+      }
+
+      setUserPosts(postsWithBoards);
+    } catch (err) {
+      // テーブルやカラムが存在しない場合のフォールバック
+      if (
+        err instanceof Error && 
+        (err.message.includes('does not exist') || err.message.includes('42703'))
+      ) {
+        console.warn('threads table structure issue, setting empty posts');
+        setUserPosts([]);
       } else {
+        console.error('Exception fetching user posts:', err);
         setUserPosts([]);
       }
-    } catch (err) {
-      console.error('Exception fetching user posts:', err);
-      setUserPosts([]);
     }
   }, [user]);
+
+  const fetchUserThreads = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const response = await fetch(`/api/users/${user.id}/threads?include_expired=true`);
+      const result = await response.json();
+
+      if (response.ok) {
+        setActiveThreads(result.active_threads || []);
+        setExpiredThreads(result.expired_threads || []);
+      } else {
+        console.error('Failed to fetch user threads:', result.error);
+        setActiveThreads([]);
+        setExpiredThreads([]);
+      }
+    } catch (err) {
+      console.error('Exception fetching user threads:', err);
+      setActiveThreads([]);
+      setExpiredThreads([]);
+    }
+  }, [user]);
+
+  const handleRestoreThread = async (threadId: string) => {
+    if (!user) return;
+
+    try {
+      const response = await fetch(`/api/threads/${threadId}/restore`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: user.id }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        // スレッドリストを再取得
+        await fetchUserThreads();
+      } else {
+        console.error('Failed to restore thread:', result.error);
+        alert(`復元に失敗しました: ${result.error}`);
+      }
+    } catch (err) {
+      console.error('Exception restoring thread:', err);
+      alert('復元中にエラーが発生しました');
+    }
+  };
 
   useEffect(() => {
     if (user) {
       fetchUserData();
       fetchConnections();
       fetchUserPosts();
+      fetchUserThreads();
     }
-  }, [user, fetchUserData, fetchConnections, fetchUserPosts]);
+  }, [user, fetchUserData, fetchConnections, fetchUserPosts, fetchUserThreads]);
+
+  const handleStartChat = useCallback((friendId: string, friendName: string) => {
+    setSelectedChatFriend({ id: friendId, name: friendName });
+    setActiveTab('dm');
+  }, []);
 
   if (!user) {
     return (
-      <div className="auth-required">
-        <h2>ログインが必要です</h2>
-        <p>マイページにアクセスするにはログインしてください。</p>
-        <Link href="/auth/login" className="login-link">
-          ログインページへ
-        </Link>
+      <div className="max-w-4xl mx-auto p-8 text-center">
+        <div className="bg-white rounded-lg shadow-md p-12">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">ログインが必要です</h2>
+          <p className="text-gray-600 mb-8">マイページにアクセスするにはログインしてください。</p>
+          <Link 
+            href="/auth/login" 
+            className="inline-block px-6 py-3 bg-yellow-500 text-white font-semibold rounded-lg hover:bg-yellow-600 transition-colors shadow-md"
+          >
+            ログインページへ
+          </Link>
+        </div>
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="loading">
-        <p>読み込み中...</p>
+      <div className="max-w-4xl mx-auto p-8 text-center">
+        <div className="bg-white rounded-lg shadow-md p-12">
+          <div className="w-8 h-8 mx-auto mb-4 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-gray-600">読み込み中...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mypage">
-      <div className="mypage-container">
-        <header className="mypage-header">
-          <h1>マイページ</h1>
-          <div className="user-info">
-            <h2>{userExtended?.display_name || user.user_metadata?.display_name}</h2>
-            <p className="points">ポイント: {userExtended?.points || 0}pt</p>
+    <div className="max-w-6xl mx-auto p-6">
+      <header className="bg-white rounded-lg shadow-md p-8 mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">マイページ</h1>
+            <h2 className="text-xl text-gray-600">{userExtended?.display_name || user.user_metadata?.display_name}</h2>
           </div>
-        </header>
+          <div className="text-right">
+            <div className="bg-yellow-100 px-4 py-2 rounded-lg">
+              <p className="text-sm text-gray-600">ポイント</p>
+              <p className="text-2xl font-bold text-yellow-600">{userExtended?.points || 0}pt</p>
+            </div>
+          </div>
+        </div>
+      </header>
 
-        <nav className="tab-nav">
+      <nav className="bg-white rounded-lg shadow-md mb-8 overflow-hidden">
+        <div className="flex">
           <button
             type="button"
-            className={`tab-button ${activeTab === 'base' ? 'active' : ''}`}
+            className={`flex-1 py-4 px-6 text-center font-semibold transition-all ${
+              activeTab === 'base' 
+                ? 'bg-yellow-500 text-white shadow-md' 
+                : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
             onClick={() => setActiveTab('base')}
           >
-            拠点設定
+            <div className="text-sm">拠点設定</div>
           </button>
           <button
             type="button"
-            className={`tab-button ${activeTab === 'friends' ? 'active' : ''}`}
+            className={`flex-1 py-4 px-6 text-center font-semibold transition-all ${
+              activeTab === 'friends' 
+                ? 'bg-yellow-500 text-white shadow-md' 
+                : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
             onClick={() => setActiveTab('friends')}
           >
-            友達 ({connections.length})
+            <div className="text-sm">友達</div>
+            <div className="text-xs mt-1">({connections.length})</div>
           </button>
           <button
             type="button"
-            className={`tab-button ${activeTab === 'dm' ? 'active' : ''}`}
+            className={`flex-1 py-4 px-6 text-center font-semibold transition-all ${
+              activeTab === 'dm' 
+                ? 'bg-yellow-500 text-white shadow-md' 
+                : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
             onClick={() => setActiveTab('dm')}
           >
-            メッセージ
+            <div className="text-sm">メッセージ</div>
           </button>
           <button
             type="button"
-            className={`tab-button ${activeTab === 'posts' ? 'active' : ''}`}
+            className={`flex-1 py-4 px-6 text-center font-semibold transition-all ${
+              activeTab === 'posts' 
+                ? 'bg-yellow-500 text-white shadow-md' 
+                : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
             onClick={() => setActiveTab('posts')}
           >
-            投稿履歴 ({userPosts.length})
+            <div className="text-sm">投稿履歴</div>
+            <div className="text-xs mt-1">({userPosts.length})</div>
           </button>
-        </nav>
+          <button
+            type="button"
+            className={`flex-1 py-4 px-6 text-center font-semibold transition-all ${
+              activeTab === 'threads' 
+                ? 'bg-yellow-500 text-white shadow-md' 
+                : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+            onClick={() => setActiveTab('threads')}
+          >
+            <div className="text-sm">スレッド管理</div>
+            <div className="text-xs mt-1">有効({activeThreads.length}) 期限切れ({expiredThreads.length})</div>
+          </button>
+        </div>
+      </nav>
 
-        <main className="tab-content">
-          {activeTab === 'base' && (
-            <div className="base-section">
-              <h3>拠点登録</h3>
-              <p>活動拠点を1つまで登録できます</p>
+      <main className="bg-white rounded-lg shadow-md p-8">
+        {activeTab === 'base' && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">拠点登録</h3>
+              <p className="text-gray-600">活動拠点を1つまで登録できます</p>
+            </div>
               {user && (
                 <BaseRegistration
                   userId={user.id}
@@ -397,162 +479,127 @@ export default function MyPage() {
             </div>
           )}
 
-          {activeTab === 'friends' && (
-            <div className="friends-section">
-              <h3>友達一覧</h3>
-              {user && userExtended && (
-                <FriendsManager
-                  userId={user.id}
-                  userQrCode={userExtended.qr_code}
-                  connections={connections}
-                  onUpdate={fetchConnections}
-                />
-              )}
+        {activeTab === 'friends' && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">友達一覧</h3>
+              <p className="text-gray-600">QRコードを交換して友達を追加しましょう</p>
             </div>
-          )}
+            {user && userExtended && (
+              <FriendsManager
+                userId={user.id}
+                userQrCode={userExtended.qr_code}
+                connections={connections}
+                onUpdate={fetchConnections}
+                onStartChat={handleStartChat}
+              />
+            )}
+          </div>
+        )}
 
-          {activeTab === 'dm' && (
-            <div className="dm-section">
-              <h3>ダイレクトメッセージ</h3>
-              {user && <DirectMessages userId={user.id} connections={connections} />}
+        {activeTab === 'dm' && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">ダイレクトメッセージ</h3>
+              <p className="text-gray-600">友達とリアルタイムでメッセージのやり取りができます</p>
             </div>
-          )}
+            {user && (
+              <DirectMessages 
+                userId={user.id} 
+                connections={connections} 
+                autoStartChatWith={selectedChatFriend}
+              />
+            )}
+          </div>
+        )}
 
-          {activeTab === 'posts' && (
-            <div className="posts-section">
-              <h3>投稿履歴</h3>
+        {activeTab === 'posts' && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">投稿履歴</h3>
+              <p className="text-gray-600">あなたの投稿の履歴と復元機能</p>
+            </div>
               {user && <UserPosts userId={user.id} posts={userPosts} onUpdate={fetchUserPosts} />}
             </div>
           )}
+
+        {activeTab === 'threads' && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">スレッド管理</h3>
+              <p className="text-gray-600">作成したスレッドの管理と期限切れスレッドの復元</p>
+            </div>
+
+            {/* 有効なスレッド一覧 */}
+            <div className="mb-8">
+              <h4 className="text-xl font-semibold text-gray-700 mb-4">有効なスレッド ({activeThreads.length}件)</h4>
+              {activeThreads.length > 0 ? (
+                <div className="space-y-4">
+                  {activeThreads.map((thread) => (
+                    <div key={thread.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h5 className="font-semibold text-gray-800 mb-2">{thread.title}</h5>
+                          <p className="text-gray-600 text-sm mb-2">{thread.content.substring(0, 100)}...</p>
+                          <div className="flex items-center space-x-4 text-xs text-gray-500">
+                            <span>作成: {new Date(thread.created_at).toLocaleDateString()}</span>
+                            <span>期限: {thread.expires_at ? new Date(thread.expires_at).toLocaleDateString() : '無期限'}</span>
+                            <span>ボード: {thread.boards?.name || '不明'}</span>
+                          </div>
+                        </div>
+                        <Link 
+                          href={`/thread/${thread.id}`}
+                          className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
+                        >
+                          表示
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 italic">有効なスレッドはありません</p>
+              )}
+            </div>
+
+            {/* 期限切れスレッド一覧 */}
+            <div>
+              <h4 className="text-xl font-semibold text-gray-700 mb-4">期限切れスレッド ({expiredThreads.length}件)</h4>
+              {expiredThreads.length > 0 ? (
+                <div className="space-y-4">
+                  {expiredThreads.map((thread) => (
+                    <div key={thread.id} className="border border-red-200 rounded-lg p-4 bg-red-50">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h5 className="font-semibold text-gray-800 mb-2">{thread.title}</h5>
+                          <p className="text-gray-600 text-sm mb-2">{thread.content.substring(0, 100)}...</p>
+                          <div className="flex items-center space-x-4 text-xs text-gray-500">
+                            <span>作成: {new Date(thread.created_at).toLocaleDateString()}</span>
+                            <span className="text-red-600">期限切れ: {thread.expires_at ? new Date(thread.expires_at).toLocaleDateString() : ''}</span>
+                            <span>ボード: {thread.boards?.name || '不明'}</span>
+                            {thread.restore_count > 0 && (
+                              <span className="text-orange-600">復元回数: {thread.restore_count}</span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRestoreThread(thread.id)}
+                          className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600"
+                        >
+                          復元
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 italic">期限切れスレッドはありません</p>
+              )}
+            </div>
+          </div>
+        )}
         </main>
       </div>
-
-      <style jsx>{`
-        .mypage {
-          min-height: 100vh;
-          background: rgb(var(--background-rgb));
-          padding: 2rem 1rem;
-        }
-
-        .mypage-container {
-          max-width: 1000px;
-          margin: 0 auto;
-        }
-
-        .mypage-header {
-          background: rgb(var(--card-bg-rgb));
-          border-radius: var(--border-radius-md);
-          padding: 2rem;
-          margin-bottom: 2rem;
-          border: 1px solid var(--border-color);
-        }
-
-        .mypage-header h1 {
-          margin: 0 0 1rem 0;
-          color: var(--text-primary);
-          font-size: 2rem;
-        }
-
-        .user-info h2 {
-          margin: 0 0 0.5rem 0;
-          color: var(--text-primary);
-          font-size: 1.25rem;
-        }
-
-        .points {
-          color: rgb(230, 168, 0);
-          font-weight: 600;
-          margin: 0;
-        }
-
-        .tab-nav {
-          display: flex;
-          background: rgb(var(--card-bg-rgb));
-          border-radius: var(--border-radius-md);
-          padding: 0.5rem;
-          margin-bottom: 2rem;
-          border: 1px solid var(--border-color);
-          gap: 0.5rem;
-        }
-
-        .tab-button {
-          flex: 1;
-          padding: 1rem;
-          border: none;
-          background: transparent;
-          color: var(--text-secondary);
-          border-radius: var(--border-radius);
-          cursor: pointer;
-          font-weight: 500;
-          transition: all 0.2s;
-        }
-
-        .tab-button:hover {
-          background: rgba(230, 168, 0, 0.1);
-          color: var(--text-primary);
-        }
-
-        .tab-button.active {
-          background: rgb(230, 168, 0);
-          color: white;
-        }
-
-        .tab-content {
-          background: rgb(var(--card-bg-rgb));
-          border-radius: var(--border-radius-md);
-          padding: 2rem;
-          border: 1px solid var(--border-color);
-        }
-
-        .tab-content h3 {
-          margin: 0 0 1rem 0;
-          color: var(--text-primary);
-        }
-
-
-
-
-
-        .auth-required, .loading {
-          min-height: 50vh;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          text-align: center;
-        }
-
-        .login-link {
-          color: rgb(230, 168, 0);
-          text-decoration: none;
-          font-weight: 600;
-          margin-top: 1rem;
-        }
-
-        .login-link:hover {
-          text-decoration: underline;
-        }
-
-
-        @media (max-width: 768px) {
-          .mypage {
-            padding: 1rem;
-          }
-
-          .mypage-header, .tab-content {
-            padding: 1.5rem;
-          }
-
-          .tab-nav {
-            flex-wrap: wrap;
-          }
-
-          .tab-button {
-            min-width: calc(50% - 0.25rem);
-          }
-
-        }
-      `}</style>
-    </div>
-  );
+    );
 }

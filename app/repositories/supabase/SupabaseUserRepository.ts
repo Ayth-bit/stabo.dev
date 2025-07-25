@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase-admin'
 import type { User } from '@/app/types/domain'
 
 export class SupabaseUserRepository {
@@ -18,7 +18,7 @@ export class SupabaseUserRepository {
   }
 
   async findAll(): Promise<User[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('users_extended')
       .select('*')
       .order('created_at', { ascending: false })
@@ -32,7 +32,7 @@ export class SupabaseUserRepository {
   }
 
   async findById(id: string): Promise<User | null> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('users_extended')
       .select('*')
       .eq('id', id)
@@ -47,7 +47,7 @@ export class SupabaseUserRepository {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('users_extended')
       .select('*')
       .eq('email', email)

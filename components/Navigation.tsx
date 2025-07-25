@@ -14,12 +14,13 @@ export function Navigation() {
   };
 
   return (
-    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-      <div className="max-w-7xl mx-auto flex justify-between items-center px-4 py-4">
+    <nav className="bg-white sticky top-0 z-50 shadow-md border-b border-yellow-200">
+      <div className="max-w-7xl mx-auto flex justify-between items-center px-8 py-6">
         {/* Logo */}
         <Link 
           href="/" 
-          className="text-2xl font-bold text-primary hover:text-accent transition-colors duration-200 md:text-xl"
+          className="text-3xl font-bold transition-all duration-200 hover:scale-105 md:text-2xl"
+          style={{color: 'rgb(230, 168, 0)', letterSpacing: '0.05em'}}
         >
           stabo.dev
         </Link>
@@ -28,7 +29,7 @@ export function Navigation() {
         <div className="flex items-center gap-6">
           <Link 
             href="/boards" 
-            className="text-secondary hover:text-primary hover:bg-gray-50 px-6 py-3 rounded-lg transition-all duration-200 font-medium"
+            className="text-gray-600 hover:bg-yellow-50 px-6 py-3 rounded-lg transition-all duration-200 font-semibold hover:text-yellow-600 hover:shadow-sm"
           >
             掲示板一覧
           </Link>
@@ -37,25 +38,26 @@ export function Navigation() {
             <div className="relative">
               <button 
                 type="button" 
-                className="btn-secondary text-sm"
+                className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg"
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
               >
                 {user.user_metadata?.display_name || 'ユーザー'}
               </button>
               
               {isMenuOpen && (
-                <div className="absolute top-full right-0 mt-2 card shadow-lg min-w-[150px] z-10">
+                <div className="absolute top-full right-0 mt-3 bg-white rounded-xl min-w-[200px] z-10 py-3 shadow-xl border border-gray-100">
                   <Link
                     href="/mypage"
-                    className="block w-full px-4 py-3 text-primary text-sm hover:bg-gray-50 transition-colors duration-200 no-underline"
+                    className="block w-full px-6 py-4 text-gray-700 hover:bg-yellow-50 transition-colors duration-200 no-underline font-medium hover:text-yellow-600"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     マイページ
                   </Link>
+                  <div className="h-px bg-gray-200 mx-4 my-2" />
                   <button 
                     type="button" 
                     onClick={handleSignOut} 
-                    className="block w-full px-4 py-3 text-red-600 text-sm hover:bg-red-50 transition-colors duration-200 border-t border-gray-200 text-left bg-transparent border-0 cursor-pointer"
+                    className="block w-full px-6 py-4 text-red-600 hover:bg-red-50 transition-colors duration-200 text-left bg-transparent border-0 cursor-pointer font-medium hover:text-red-700"
                   >
                     ログアウト
                   </button>
@@ -63,16 +65,16 @@ export function Navigation() {
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-4 md:flex-col md:gap-2">
+            <div className="flex items-center gap-4">
               <Link 
                 href="/auth/login" 
-                className="text-secondary hover:text-primary hover:bg-gray-50 px-6 py-3 rounded-lg transition-all duration-200 font-medium md:px-4 md:py-2 md:text-sm"
+                className="text-gray-600 hover:bg-yellow-50 px-6 py-3 rounded-lg transition-all duration-200 font-semibold hover:text-yellow-600 hover:shadow-sm"
               >
                 ログイン
               </Link>
               <Link 
                 href="/auth/register" 
-                className="btn-primary text-sm no-underline px-6 py-3 md:px-4 md:py-2"
+                className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg no-underline"
               >
                 新規登録
               </Link>

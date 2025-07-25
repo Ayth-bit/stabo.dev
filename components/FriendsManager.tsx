@@ -18,9 +18,10 @@ interface FriendsManagerProps {
   userQrCode: string;
   connections: Connection[];
   onUpdate: () => void;
+  onStartChat?: (friendId: string, friendName: string) => void;
 }
 
-export function FriendsManager({ userId, userQrCode, connections, onUpdate }: FriendsManagerProps) {
+export function FriendsManager({ userId, userQrCode, connections, onUpdate, onStartChat }: FriendsManagerProps) {
   const [showQrCode, setShowQrCode] = useState(false);
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [qrCodeInput, setQrCodeInput] = useState('');
@@ -102,18 +103,20 @@ export function FriendsManager({ userId, userQrCode, connections, onUpdate }: Fr
         },
       ];
 
-      const { error: insertError } = await supabase
+      const { data: insertData, error: insertError } = await supabase
         .from('connections')
         .insert(connections_to_insert);
+
+      console.log('Insert response:', { data: insertData, error: insertError });
 
       if (insertError) {
         console.error('友達関係作成エラー:', insertError);
         console.error('Full error object:', JSON.stringify(insertError, null, 2));
 
         if (insertError.code === '42P01' || insertError.message?.includes('does not exist')) {
-          throw new Error('友達管理機能がまだ準備中です。データベースのセットアップが必要です。');
+          throw new Error('友達管理機能がまだ準備中です。データベースのセットアップが必要です。Supabaseダッシュボードで以下のSQLを実行してください：\n\nCREATE TABLE connections (\n  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),\n  user_id UUID REFERENCES users_extended(id),\n  connected_user_id UUID REFERENCES users_extended(id),\n  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n);\nALTER TABLE connections DISABLE ROW LEVEL SECURITY;');
         }
-        throw insertError;
+        throw new Error(insertError.message || '友達の追加に失敗しました');
       }
 
       setSuccess(`${targetUser.display_name}さんを友達に追加しました！`);
@@ -265,6 +268,7 @@ export function FriendsManager({ userId, userQrCode, connections, onUpdate }: Fr
                   <button 
                     type="button" 
                     className="flex-1 md:flex-none bg-blue-500 hover:bg-blue-600 text-white border-none px-3 py-2 rounded cursor-pointer text-xs font-medium transition-colors"
+                    onClick={() => onStartChat?.(connection.connected_user_id, connection.connected_user.display_name)}
                   >
                     メッセージ
                   </button>

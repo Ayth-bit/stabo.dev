@@ -70,8 +70,6 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
   const [content, setContent] = useState('');
   const [submittingPost, setSubmittingPost] = useState(false);
   const [selectedFont, setSelectedFont] = useState('var(--font-noto-sans-jp)');
-  const [postLink, setPostLink] = useState('');
-  const [postColor, setPostColor] = useState('#333333');
 
   const postsEndRef = useRef<HTMLDivElement>(null);
 
@@ -94,65 +92,25 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
           throw new Error('無効なスレッドIDです。');
         }
 
-        // First try to get the thread without RLS restrictions for archived threads
-        let { data: threadData, error: threadError } = await supabase
-          .from('threads')
-          .select('*, is_global, is_archived, restore_count')
-          .eq('id', threadId)
-          .single();
+        // APIルート経由でスレッドデータを取得
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+        const response = await fetch(`${apiBaseUrl}/api/threads/${threadId}`);
+        const result = await response.json();
         
-        // If thread not found due to RLS (archived), try with a different approach
-        if (threadError && threadError.code === 'PGRST116') {
-          console.log('Thread may be archived, trying alternative query');
-          // Try to get thread data regardless of archive status using a more permissive query
-          const { data: allThreadsData, error: allThreadsError } = await supabase
-            .from('threads')
-            .select('*, is_global, is_archived, restore_count')
-            .eq('id', threadId);
-          
-          if (allThreadsData && allThreadsData.length > 0) {
-            threadData = allThreadsData[0];
-            threadError = null;
-          } else {
-            threadError = allThreadsError;
-          }
+        if (!response.ok) {
+          throw new Error(result.error || 'スレッドの取得に失敗しました');
         }
         
-        if (threadError) {
-          console.error('Thread query error:', {
-            code: threadError.code,
-            message: threadError.message,
-            details: threadError.details,
-            hint: threadError.hint,
-            fullError: threadError
-          });
-          
-          if (threadError.code === 'PGRST116' || threadError.message?.includes('No rows found')) {
-            throw new Error('スレッドが見つかりません。削除されている可能性があります。');
-          }
-          
-          if (threadError.code === '42501' || threadError.message?.includes('permission denied')) {
-            throw new Error('このスレッドにアクセスする権限がありません。');
-          }
-          
-          throw new Error(`スレッドの取得に失敗しました: ${threadError.message || 'Unknown error'}`);
-        }
+        const threadData = result.thread;
         
         if (!threadData) throw new Error('スレッドが見つかりません。');
         setThread(threadData);
 
-        const fetchPosts = async () => {
-          const { data: postsData, error: postsError } = await supabase
-            .from('posts')
-            .select('*')
-            .eq('thread_id', threadId)
-            .order('created_at', { ascending: true });
-          if (postsError) throw postsError;
-          setPosts(postsData);
-        };
+        // 投稿データもAPIから取得済み
+        const postsData = result.posts || [];
+        setPosts(postsData);
 
         if (threadData.is_global) {
-          await fetchPosts();
           setPageStatus({ loading: false, error: null, isAccessAllowed: true, canWrite: true });
           return;
         }
@@ -179,7 +137,6 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
                 canWrite: false,
               });
             } else {
-              await fetchPosts();
               const canWrite = distance <= WRITE_RADIUS_KM;
               const errorMsg = canWrite
                 ? null
@@ -204,19 +161,56 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
 
     checkAccessAndFetchData();
 
-    const postsChannel = supabase
-      .channel(`thread_posts:${threadId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'posts', filter: `thread_id=eq.${threadId}` },
-        (payload) => {
-          setPosts((currentPosts) => [...currentPosts, payload.new as Post]);
+    // Realtime subscription with error handling
+    let postsChannel: ReturnType<typeof supabase.channel> | null = null;
+    
+    try {
+      postsChannel = supabase
+        .channel(`thread_posts:${threadId}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'posts', filter: `thread_id=eq.${threadId}` },
+          (payload) => {
+            console.log('New post received via realtime:', payload);
+            setPosts((currentPosts) => [...currentPosts, payload.new as Post]);
+          }
+        )
+        .subscribe((status) => {
+          console.log('Posts channel subscription status:', status);
+        });
+    } catch (error) {
+      console.warn('Realtime subscription failed, falling back to polling:', error);
+      
+      // Fallback: Poll for new posts every 5 seconds
+      const intervalId = setInterval(async () => {
+        try {
+          const { data: latestPosts } = await supabase
+            .from('posts')
+            .select('*')
+            .eq('thread_id', threadId)
+            .order('created_at', { ascending: true });
+            
+          if (latestPosts) {
+            setPosts(latestPosts);
+          }
+        } catch (pollError) {
+          console.error('Polling error:', pollError);
         }
-      )
-      .subscribe();
+      }, 5000);
+      
+      return () => {
+        clearInterval(intervalId);
+      };
+    }
 
     return () => {
-      supabase.removeChannel(postsChannel);
+      if (postsChannel) {
+        try {
+          supabase.removeChannel(postsChannel);
+        } catch (error) {
+          console.warn('Error removing channel:', error);
+        }
+      }
     };
   }, [threadId]);
 
@@ -231,21 +225,72 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
     setPageStatus((prev) => ({ ...prev, error: null }));
 
     try {
-      const { error: insertError } = await supabase.from('posts').insert([
-        {
-          thread_id: threadId,
-          author_name: authorName.trim() || null,
-          content: content.trim(),
-          font_family: selectedFont,
-          link: postLink.trim() || null,
-          color: postColor,
-        },
-      ]);
+      // Get current user to set appropriate author_id
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Current user for post creation:', user);
+      
+      const postData = {
+        thread_id: threadId,
+        author_id: user?.id || null, // Set to user ID if authenticated, null if anonymous
+        author_name: authorName.trim() || 'unknown', // Provide default value for NOT NULL constraint
+        content: content.trim(),
+        font_family: selectedFont || 'Noto Sans JP',
+        // Remove 'link' field as it doesn't exist in the table
+      };
+      
+      console.log('Post data being inserted:', postData);
+      
+      const { data: insertedPost, error: insertError } = await supabase
+        .from('posts')
+        .insert([postData])
+        .select()
+        .single();
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Post insertion error:', insertError);
+        console.error('Error details:', {
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+          code: insertError.code
+        });
+        throw insertError;
+      }
+
+      console.log('Post inserted successfully:', insertedPost);
+
+      // Immediately add the new post to the local state
+      if (insertedPost) {
+        const newPost: Post = {
+          id: insertedPost.id,
+          thread_id: insertedPost.thread_id,
+          author_name: insertedPost.author_name,
+          content: insertedPost.content,
+          created_at: insertedPost.created_at,
+          font_family: insertedPost.font_family,
+          link: null,
+          color: null,
+        };
+        
+        setPosts((currentPosts) => [...currentPosts, newPost]);
+        
+        // Also update thread post count
+        setThread((currentThread) => 
+          currentThread 
+            ? { ...currentThread, post_count: currentThread.post_count + 1 }
+            : currentThread
+        );
+        
+        // Scroll to bottom to show new post
+        setTimeout(() => {
+          if (postsEndRef.current) {
+            postsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 100);
+      }
 
       setContent('');
-      setPostLink('');
+      setAuthorName('');
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setPageStatus((prev) => ({ ...prev, error: `投稿エラー: ${errorMessage}` }));
@@ -409,16 +454,9 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
               border: '1px solid var(--border-color)',
               borderRadius: '4px',
               fontFamily: selectedFont,
-              color: postColor,
+              color: '#333333',
               transition: 'all 0.2s',
             }}
-          />
-          <input
-            type="url"
-            placeholder="https://example.com (任意)"
-            value={postLink}
-            onChange={(e) => setPostLink(e.target.value)}
-            style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px' }}
           />
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <select
@@ -440,18 +478,6 @@ const ThreadDetailPage = ({ params }: { params: Promise<{ id: string }> }) => {
               <option value="serif">明朝体</option>
               <option value="monospace">等幅フォント</option>
             </select>
-            <input
-              type="color"
-              value={postColor}
-              onChange={(e) => setPostColor(e.target.value)}
-              style={{
-                padding: '2px',
-                height: '40px',
-                border: '1px solid var(--border-color)',
-                borderRadius: '4px',
-              }}
-              disabled={!pageStatus.canWrite}
-            />
           </div>
           <button
             type="submit"

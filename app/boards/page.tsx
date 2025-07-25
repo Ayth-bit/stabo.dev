@@ -25,53 +25,84 @@ export default function BoardsPage() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [isOutOfRange, setIsOutOfRange] = useState(false);
   const [filter, setFilter] = useState<'all' | 'accessible' | 'station' | 'ward' | 'park'>(
-    'accessible'
+    'all'
   );
 
   const fetchBoards = useCallback(async () => {
     try {
       const locationParam = userLocation
         ? `?lat=${userLocation.lat}&lng=${userLocation.lng}&filter=${filter}`
-        : `?filter=${filter}`;
+        : `?lat=0&lng=0&filter=${filter}`;
 
+      console.log('Fetching boards with params:', locationParam);
       const response = await fetch(`/api/boards/integrated${locationParam}`);
       if (response.ok) {
         const data = await response.json();
-        setBoards(data.boards);
-        setBoardStats(data.byType);
+        console.log('Boards data received:', data);
+        
+        // 位置情報があるのに掲示板が0件の場合は範囲外と判定
+        if (userLocation && data.boards.length === 0 && data.allStats.all > 0) {
+          console.log('User location is out of range, using fallback');
+          setIsOutOfRange(true);
+          // 東京駅の座標で再取得
+          const fallbackResponse = await fetch(`/api/boards/integrated?lat=35.6812&lng=139.7671&filter=${filter}`);
+          if (fallbackResponse.ok) {
+            const fallbackData = await fallbackResponse.json();
+            setBoards(fallbackData.boards || []);
+            setBoardStats(fallbackData.byType || { station: 0, ward: 0, park: 0, accessible: 0 });
+            return;
+          }
+        } else {
+          setIsOutOfRange(false);
+        }
+        
+        setBoards(data.boards || []);
+        setBoardStats(data.byType || { station: 0, ward: 0, park: 0, accessible: 0 });
         if (data.allStats) {
           setAllStats(data.allStats);
         }
+      } else {
+        console.error('Failed to fetch boards:', response.status, await response.text());
       }
-    } catch {
-      console.error('掲示板データの取得に失敗');
+    } catch (error) {
+      console.error('掲示板データの取得に失敗', error);
     }
   }, [userLocation, filter]);
 
   // 初期データ取得を位置情報なしでも実行
   const fetchInitialData = useCallback(async () => {
     try {
-      const response = await fetch('/api/boards/integrated?filter=all');
+      const response = await fetch('/api/boards/integrated?lat=0&lng=0&filter=all');
       if (response.ok) {
         const data = await response.json();
+        console.log('Initial data received:', data);
+        // 初期表示時にもボードデータを設定
+        setBoards(data.boards || []);
         if (data.allStats) {
           setAllStats(data.allStats);
         }
       }
-    } catch {
-      console.error('初期データの取得に失敗');
+    } catch (error) {
+      console.error('初期データの取得に失敗', error);
     }
   }, []);
 
   useEffect(() => {
-    fetchInitialData(); // 位置情報に関係なく統計を取得
+    fetchInitialData(); // 位置情報に関係なく統計とボードデータを取得
     getCurrentLocation();
   }, [fetchInitialData]);
 
   useEffect(() => {
-    fetchBoards();
-  }, [fetchBoards]);
+    // 位置情報が取得された場合、またはフィルターが変更された場合にfetchBoardsを実行
+    // ただし、位置情報がなくaccessibleフィルターの場合は除く
+    if (userLocation && !locationError) {
+      fetchBoards();
+    } else if (!userLocation && filter !== 'accessible') {
+      fetchBoards();
+    }
+  }, [fetchBoards, userLocation, locationError, filter]);
 
   const getCurrentLocation = () => {
     setLoading(true);
@@ -216,6 +247,11 @@ export default function BoardsPage() {
               ? `${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}`
               : '取得中...'}
           </p>
+          {isOutOfRange && (
+            <div className="message-warning mt-2 text-sm">
+              現在地は対象エリア外です。東京駅周辺の掲示板を表示しています。
+            </div>
+          )}
         </header>
 
         <nav className="mb-8">
@@ -223,60 +259,60 @@ export default function BoardsPage() {
             <div className="flex gap-4 flex-wrap justify-center">
               <button
                 type="button"
-                className={`px-5 py-3 text-sm font-medium transition-all duration-200 min-w-[120px] ${
+                className={`text-sm font-medium transition-all duration-200 min-w-[120px] ${
                   filter === 'accessible'
                     ? 'bg-accent text-white shadow-md'
-                    : 'btn-secondary'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
-                style={{ borderRadius: 'var(--border-radius)' }}
+                style={{ borderRadius: 'var(--border-radius)', border: 'none', padding: '12px 24px', margin: '4px' }}
                 onClick={() => setFilter('accessible')}
               >
                 アクセス可能 ({allStats.accessible})
               </button>
               <button
                 type="button"
-                className={`px-5 py-3 text-sm font-medium transition-all duration-200 min-w-[100px] ${
+                className={`text-sm font-medium transition-all duration-200 min-w-[100px] ${
                   filter === 'station'
                     ? 'bg-accent text-white shadow-md'
-                    : 'btn-secondary'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
-                style={{ borderRadius: 'var(--border-radius)' }}
+                style={{ borderRadius: 'var(--border-radius)', border: 'none', padding: '12px 24px', margin: '4px' }}
                 onClick={() => setFilter('station')}
               >
                 駅 ({allStats.station})
               </button>
               <button
                 type="button"
-                className={`px-5 py-3 text-sm font-medium transition-all duration-200 min-w-[100px] ${
+                className={`text-sm font-medium transition-all duration-200 min-w-[100px] ${
                   filter === 'ward'
                     ? 'bg-accent text-white shadow-md'
-                    : 'btn-secondary'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
-                style={{ borderRadius: 'var(--border-radius)' }}
+                style={{ borderRadius: 'var(--border-radius)', border: 'none', padding: '12px 24px', margin: '4px' }}
                 onClick={() => setFilter('ward')}
               >
                 区 ({allStats.ward})
               </button>
               <button
                 type="button"
-                className={`px-5 py-3 text-sm font-medium transition-all duration-200 min-w-[100px] ${
+                className={`text-sm font-medium transition-all duration-200 min-w-[100px] ${
                   filter === 'park'
                     ? 'bg-accent text-white shadow-md'
-                    : 'btn-secondary'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
-                style={{ borderRadius: 'var(--border-radius)' }}
+                style={{ borderRadius: 'var(--border-radius)', border: 'none', padding: '12px 24px', margin: '4px' }}
                 onClick={() => setFilter('park')}
               >
                 公園 ({allStats.park})
               </button>
               <button
                 type="button"
-                className={`px-5 py-3 text-sm font-medium transition-all duration-200 min-w-[100px] ${
+                className={`text-sm font-medium transition-all duration-200 min-w-[100px] ${
                   filter === 'all'
                     ? 'bg-accent text-white shadow-md'
-                    : 'btn-secondary'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
-                style={{ borderRadius: 'var(--border-radius)' }}
+                style={{ borderRadius: 'var(--border-radius)', border: 'none', padding: '12px 24px', margin: '4px' }}
                 onClick={() => setFilter('all')}
               >
                 全て ({allStats.all})

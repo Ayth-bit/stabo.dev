@@ -1,15 +1,27 @@
 # Stabo.dev ファイル構成一覧
 
 ## プロジェクト概要
-位置ベースのスレッド投稿プラットフォーム「Stabo.dev」のファイル構成と各ファイルの機能説明
+東京23区内の住民・滞在者向け位置情報活用掲示板システム「Stabo.dev」のファイル構成と各ファイルの機能説明
+
+## アプリの目的
+東京23区内の住民・滞在者が、位置情報を活用して周囲の掲示板機能・友達管理・リアルタイムチャット機能を通じて情報交換・交流できるサービス
+
+## 全体仕様
+- **東京23区エリア外ではアプリを利用できない**
+- **掲示板の閲覧・投稿範囲:**
+  - **閲覧**: 半径1.5km以内にある掲示板を表示（最大3件）
+  - **投稿**: 対象掲示板の中心から300m以内で可能
+- **友達管理**: QRコード交換による双方向友達登録
+- **チャット機能**: 友達同士のリアルタイムメッセージング
 
 ## 技術スタック
 - **フレームワーク**: Next.js 15.3.3 (App Router)
 - **フロントエンド**: React 19, TypeScript
-- **スタイリング**: Tailwind CSS v4
-- **バックエンド**: Supabase (PostgreSQL + Edge Functions)
+- **スタイリング**: Tailwind CSS v4 + Material Design 3.0
+- **バックエンド**: Supabase (PostgreSQL + Edge Functions + Realtime)
 - **リンター**: Biome
 - **地図**: Google Maps API & Leaflet
+- **QRコード**: 外部API (qr-server.com)
 
 ---
 
@@ -22,11 +34,9 @@
 - **package-lock.json** - 依存関係のロック
 - **next.config.ts** - Next.js設定ファイル
 - **tsconfig.json** - TypeScript設定
-- **tsconfig.tsbuildinfo** - TypeScriptビルドキャッシュ
 - **eslint.config.mjs** - ESLint設定
 - **biome.json** - Biome（リンター・フォーマッター）設定
 - **postcss.config.mjs** - PostCSS設定（Tailwind CSS用）
-- **next-env.d.ts** - Next.js TypeScript定義
 
 ### app/ - Next.js App Router構造
 
@@ -59,12 +69,12 @@
 #### その他ページ
 - **app/home/page.tsx** - ホーム機能（重複？）
 - **app/map/[boardId]/page.tsx** - ボード地図表示
-- **app/mypage/page.tsx** - ユーザーマイページ
+- **app/mypage/page.tsx** - ユーザーマイページ（拠点登録・友達管理・DM・投稿履歴）
 
 #### API Routes
 - **app/api/boards/route.ts** - ボード一覧API
-- **app/api/boards/data.ts** - ボードデータ操作
-- **app/api/boards/integrated/route.ts** - 統合ボードAPI
+- **app/api/boards/data.ts** - 掲示板データ（山手線全30駅・東京23区・都立公園）
+- **app/api/boards/integrated/route.ts** - 統合ボードAPI（距離計算・最大3件制限）
 - **app/api/boards/[id]/route.ts** - 個別ボードAPI
 - **app/api/boards/[id]/threads/route.ts** - ボード内スレッドAPI
 - **app/api/threads/lifecycle/route.ts** - スレッドライフサイクル管理
@@ -75,17 +85,17 @@
 ### コンポーネント・機能層
 
 #### Reactコンポーネント (components/)
-- **ThemeSwitcher.tsx** - テーマ切り替えUI（4テーマ対応）
-- **Navigation.tsx** - サイトナビゲーション
-- **AuthProvider.tsx** - 認証状態管理プロバイダー
-- **AuthLayout.tsx** - 認証レイアウトコンポーネント
-- **LocationGuard.tsx** - 位置情報アクセス制御
-- **AdminMapView.tsx** - 管理者用地図コンポーネント
-- **BaseRegistration.tsx** - ユーザー登録基本コンポーネント
-- **DirectMessages.tsx** - ダイレクトメッセージ機能
-- **FriendsManager.tsx** - フレンド管理機能
-- **ThreadLifecycleManager.tsx** - スレッドライフサイクル管理UI
-- **UserPosts.tsx** - ユーザー投稿表示
+- **AdminMapView.tsx** - 管理者用地図表示コンポーネント（Google Maps連携）
+- **AuthLayout.tsx** - 認証ページ共通レイアウト（ログイン・登録画面用）
+- **AuthProvider.tsx** - 認証状態管理プロバイダー（Supabase Auth連携）
+- **BaseRegistration.tsx** - 拠点登録機能（1つまで、東京23区内限定、地図選択UI）
+- **DirectMessages.tsx** - リアルタイムチャット機能（Supabase Realtime、自動更新、既読管理）
+- **FriendsManager.tsx** - 友達管理機能（QRコード生成・読取、双方向登録、友達削除）
+- **LocationGuard.tsx** - 位置情報アクセス制御（東京23区内判定、開発環境フォールバック）
+- **Navigation.tsx** - サイトナビゲーション（認証状態対応、テーマ切り替え）
+- **ThemeSwitcher.tsx** - テーマ切り替えUI（4テーマ対応：classic/modern-chic/y2k-web/harajuku-pop）
+- **ThreadLifecycleManager.tsx** - スレッドライフサイクル管理（72時間制限、復元機能、アーカイブ処理）
+- **UserPosts.tsx** - ユーザー投稿履歴表示（1回限り復元機能、投稿統計）
 
 #### コンテキスト (contexts/)
 - **ThemeContext.tsx** - テーマ状態管理（4テーマ：classic/modern-chic/y2k-web/harajuku-pop）
@@ -132,8 +142,6 @@
 #### データベース
 - **supabase/config.toml** - Supabaseローカル開発設定
 - **supabase/seed.sql** - 初期データ
-- **database/schema.sql** - データベーススキーマ定義
-- **database/master-data.sql** - マスターデータ
 
 #### マイグレーション (supabase/migrations/)
 - **20250724000000_initial_schema.sql** - 初期スキーマ作成（全テーブル・RLS・インデックス）
@@ -150,10 +158,13 @@
 - **window.svg** - ウィンドウアイコン
 
 #### scripts/
-- **db-helpers.sh** - データベース操作ヘルパースクリプト
+- **db-helpers.sh** - データベース操作ヘルパースクリプト（バックアップ・復元）
+- **db-setup.js** - リモートSupabaseセットアップスクリプト（テーブル確認・SQL生成）
+- **test-db.js** - データベース接続・機能テストスクリプト（全テーブル確認）
 
 #### docs/
-- **DATABASE_COMMANDS.md** - データベースコマンド一覧
+- **FILE.md** - プロジェクトファイル構成一覧（このファイル）
+- **TABLES_STATUS.md** - データベーステーブル状況整理（リモート・ローカル対応状況）
 
 ---
 
@@ -162,7 +173,9 @@
 ### 1. 位置ベース機能
 - **位置取得**: `app/page.tsx` でブラウザGeolocation API
 - **距離計算**: Edge Functionsでヒュベニの公式
-- **アクセス制御**: 1km半径制限（`locationCheck.ts`）
+- **アクセス制御**: 東京23区内限定（`locationCheck.ts`）
+- **掲示板表示**: 1.5km以内、最大3件表示
+- **投稿範囲**: 各掲示板から300m以内
 
 ### 2. テーマシステム
 - **4テーマ**: classic/modern-chic/y2k-web/harajuku-pop

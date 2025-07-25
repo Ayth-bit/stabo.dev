@@ -13,6 +13,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if supabaseAdmin is available
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Supabase admin client not available' }, { status: 500 });
+    }
+
     // Check if admin user already exists
     const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers();
     const adminExists = existingUser.users.some((user) => user.email === email);
@@ -83,6 +88,11 @@ export async function POST(request: NextRequest) {
 // GET method to check admin status
 export async function GET() {
   try {
+    // Check if supabaseAdmin is available
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Supabase admin client not available' }, { status: 500 });
+    }
+
     // Check if admin user exists
     const { data: users } = await supabaseAdmin.auth.admin.listUsers();
     const adminUser = users.users.find((user) => user.email === 'admin@example.com');
