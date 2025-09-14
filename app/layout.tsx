@@ -47,7 +47,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const gtmId = "GTM-XXXXXXX"; // 取得したGTMコンテナIDに置き換えてください
+  const gtmId = "GTM-T5BSMSNR"; // 取得したGTMコンテナIDに置き換えてください
 
   return (
     <html lang="ja">
