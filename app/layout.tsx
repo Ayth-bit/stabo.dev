@@ -4,6 +4,8 @@ import { Noto_Sans_JP, Yuji_Syuku, Zen_Kaku_Gothic_New, DotGothic16, M_PLUS_Roun
 import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import Script from 'next/script'; // next/scriptをインポート
+
 
 // --- フォント設定 ---
 const notoSansJp = Noto_Sans_JP({
@@ -46,13 +48,33 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const gtmId = "GTM-XXXXXXX"; // 取得したGTMコンテナIDに置き換えてください
+
   return (
     <html lang="ja">
-      {/* ★★★ headタグにニコモジフォントのリンクを追加 ★★★ */}
       <head>
         <link href="https://fonts.googleapis.com/earlyaccess/nicomoji.css" rel="stylesheet" />
+        {/* ★★★ Googleタグマネージャーのスクリプトを追加 ★★★ */}
+        <Script id="google-tag-manager" strategy="afterInteractive">
+          {`
+            (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+            new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+            j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+            'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+            })(window,document,'script','dataLayer','${gtmId}');
+          `}
+        </Script>
       </head>
       <body className={`${notoSansJp.variable} ${yujiSyuku.variable} ${zenKakuGothicNew.variable} ${dotGothic.variable} ${mplusRounded.variable} antialiased`}>
+        {/* ★★★ Googleタグマネージャーの<noscript>タグを追加 ★★★ */}
+        <noscript>
+          <iframe
+            src={`https://www.googletagmanager.com/ns.html?id=${gtmId}`}
+            height="0"
+            width="0"
+            style={{ display: 'none', visibility: 'hidden' }}
+          ></iframe>
+        </noscript>
         <ThemeProvider>
           <ThemeSwitcher />
           {children}
@@ -60,4 +82,3 @@ export default function RootLayout({
       </body>
     </html>
   );
-}
